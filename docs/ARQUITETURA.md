@@ -1,4 +1,4 @@
-# Arquitetura — Radar da Inflação 0.2.0
+# Arquitetura — Radar da Inflação 0.2.1
 
 ## Escopo e escolhas
 
@@ -69,3 +69,16 @@ Cada intervalo precisa ter todos os meses, sem duplicações. O modo automático
 Os cálculos usam Decimal com contexto local de precisão proporcional ao intervalo, sem herdar uma precisão insuficiente do chamador. As diferenças usam os valores anteriores ao arredondamento. A tela aplica ROUND_HALF_UP em duas casas e evita exibir zero negativo; a exportação preserva a precisão calculada. Não há anualização nem divisão por uma taxa possivelmente zero.
 
 A composição é identificada como estimativa, porque as taxas mensais publicadas já têm arredondamento. Os acumulados oficiais da fonte são preservados e nunca substituídos por essa composição. Não houve alteração no esquema 1, nos dados da amostra ou nas dependências.
+
+
+## Revisão 0.2.1: fronteiras de exportação
+
+Cálculos usam um Context explícito, isolando também limites de expoentes e traps externos. Taxas recebidas pela análise/exportação precisam respeitar a representação da fonte, inclusive até seis casas decimais. A serialização usa format(f), sem normalize(), para preservar precisão.
+
+CSV mensal valida mês, modo, data com fuso, hash e UUID. Campos descritivos de comparação rejeitam prefixos de fórmula e controles. Valores negativos válidos permanecem numéricos. Uma exportação mensal inválida é tratada na interface sem encerrar a consulta.
+
+Na CLI, csv_bytes() termina antes de criar o temporário; publish_csv() grava no diretório final, sincroniza bytes e cria o destino por os.link(), que recusa um destino existente. finally remove o temporário. Isso depende de hard links no volume e não promete recuperação de falhas físicas ou limpeza após encerramento abrupto.
+
+Os downloads usam bytes preparados com o snapshot exibido e on_click="ignore", sem nova leitura só por baixar. As comparações continuam locais a cada execução e não compartilham cache mutável entre sessões. Atualizar a página ou alterar um filtro produz uma nova consulta.
+
+Veja [achados e evidências](REVISAO-0.2.1.md).

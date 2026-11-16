@@ -1,4 +1,4 @@
-# Capturas da versão 0.2.0
+# Capturas da versão 0.2.1
 
 Painel real local com a amostra oficial incluída, sem dados pessoais.
 

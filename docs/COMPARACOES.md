@@ -1,4 +1,4 @@
-# Comparações e explicações — versão 0.2.0
+# Comparações e explicações — versão 0.2.1
 
 ## Escolher os períodos
 
@@ -50,6 +50,8 @@ Uma inflação positiva mais baixa indica preços aumentando mais devagar; por s
 ## Exportar
 
 Baixar CSV da comparação gera quatro linhas: estimativa do intervalo e três medidas oficiais do último mês. Registra indicador, datas A/B, quantidades de meses, valores, diferenças, método e fonte.
+
+O download utiliza os dados já exibidos, mesmo se outra sessão atualizar a base. Atualize a página para incorporar uma coleta posterior.
 
 O arquivo usa UTF-8 com BOM, ponto e vírgula, vírgula decimal e quebras CRLF. Os números preservam a precisão do cálculo, sem o arredondamento de duas casas da tela. A procedência por mês continua disponível no CSV original do período, que mantém seu formato.
 

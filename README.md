@@ -2,7 +2,7 @@
 
 Pipeline de dados públicos do **IPCA nacional**, com Python, SQL/DuckDB e painel Streamlit. Coleta dados do IBGE, valida o contrato da fonte, preserva a última base válida e registra origem, hash e resultado de cada execução.
 
-**Versão 0.2.0 · execução local · sem conta, chave de API ou recurso pago.**
+**Versão 0.2.1 · execução local · sem conta, chave de API ou recurso pago.**
 
 ![Painel do Radar da Inflação](docs/imagens/painel-desktop.png)
 
@@ -121,6 +121,10 @@ O CSV da comparação registra os dois intervalos, quantidades de meses, taxas, 
 
 Consulte [métodos e interpretação](docs/COMPARACOES.md).
 
+Na versão 0.2.1, os CSVs validam tipos e procedência antes de gerar o arquivo e mantêm a precisão decimal mesmo em contextos restritivos. Downloads usam os dados já apresentados: atualize a página para consultar uma coleta posterior. A CLI publica um arquivo completo sem substituir um destino existente, mesmo com duas exportações concorrentes.
+
+A publicação pela CLI requer suporte a hard links no volume de destino (validado no D: / NTFS). Em volume sem esse suporte, use o download do navegador ou outro diretório local. Não são necessárias dependências novas. Confira os achados, testes e limites na [revisão 0.2.1](docs/REVISAO-0.2.1.md).
+
 ## Arquitetura
 
 ~~~mermaid
@@ -136,7 +140,7 @@ flowchart LR
     DB --> CSV[CSV / procedência]
 ~~~
 
-[Arquitetura e decisões](docs/ARQUITETURA.md) · [Qualidade e testes atuais](docs/VALIDACAO-0.2.0.md) · [Instalação e uso](docs/INSTALACAO.md) · [Dados e limites](docs/DADOS.md).
+[Arquitetura e decisões](docs/ARQUITETURA.md) · [Revisão e testes atuais](docs/REVISAO-0.2.1.md) · [Instalação e uso](docs/INSTALACAO.md) · [Dados e limites](docs/DADOS.md).
 
 ## Pastas e armazenamento
 

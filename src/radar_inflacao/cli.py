@@ -10,7 +10,7 @@ from pathlib import Path
 from .errors import RadarError
 from .model import month
 from .pipeline import Pipeline
-from .report import csv_bytes
+from .report import csv_bytes, publish_csv
 from .storage import Repository
 
 
@@ -72,10 +72,9 @@ def main(argv=None) -> int:
                 rows = repository.rows(db, args.start, args.end)
             if not rows:
                 raise RadarError("Nenhum mês encontrado para exportar.")
-            args.output.parent.mkdir(parents=True, exist_ok=True)
+            data = csv_bytes(rows)
             try:
-                with args.output.open("xb") as handle:
-                    handle.write(csv_bytes(rows))
+                publish_csv(args.output, data)
             except FileExistsError as exc:
                 raise RadarError("O arquivo já existe. Escolha outro destino.") from exc
             result = {"exported": len(rows), "file": str(args.output.resolve())}

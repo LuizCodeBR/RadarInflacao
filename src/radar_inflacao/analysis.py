@@ -3,7 +3,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from decimal import ROUND_HALF_UP, Decimal, localcontext
+from decimal import (
+    ROUND_HALF_UP,
+    Context,
+    Decimal,
+    DivisionByZero,
+    InvalidOperation,
+    Overflow,
+    localcontext,
+)
 
 from .errors import ValidationError
 from .model import month, next_month, periods
@@ -73,11 +81,19 @@ def reference_period(start: str, end: str, mode: str) -> tuple[str, str]:
     raise ValidationError("Modo de comparação desconhecido.")
 
 
-def _rate(row: dict, key: str) -> Decimal:
-    value = row.get(key)
+def _context(precision: int) -> Context:
+    return Context(
+        prec=precision, rounding=ROUND_HALF_UP, Emin=-999999, Emax=999999,
+        capitals=1, clamp=0, flags=[], traps=[InvalidOperation, DivisionByZero, Overflow],
+    )
+
+
+def validated_rate(value: Decimal) -> Decimal:
     if (
         not isinstance(value, Decimal)
         or not value.is_finite()
+        or not -6 <= value.as_tuple().exponent <= 6
+        or len(value.as_tuple().digits) > 14
         or not Decimal("-100") <= value <= Decimal("999999.999999")
     ):
         raise ValidationError("A comparação exige taxas decimais válidas, sem valores ausentes.")
@@ -96,16 +112,15 @@ def summarize_period(rows: list[dict], start: str, end: str) -> PeriodSummary:
             "É necessário ter todos os meses, sem duplicações; o intervalo não foi encurtado."
         )
     # A precisão cresce com o intervalo e comporta os decimais aceitos pelo contrato da fonte.
-    with localcontext() as context:
-        context.prec = len(expected) * 16 + 32
+    with localcontext(_context(len(expected) * 16 + 32)):
         factor = Decimal(1)
         for row in selected:
-            factor *= Decimal(1) + _rate(row, "monthly") / Decimal(100)
+            factor *= Decimal(1) + validated_rate(row.get("monthly")) / Decimal(100)
         compounded = (factor - Decimal(1)) * Decimal(100)
     last = selected[-1]
     return PeriodSummary(
         start, end, len(expected), compounded,
-        *(_rate(last, key) for _, key, _ in INDICATORS),
+        *(validated_rate(last.get(key)) for _, key, _ in INDICATORS),
     )
 
 
@@ -121,8 +136,7 @@ def compare_periods(
             for label, key, _ in INDICATORS
         ),
     ]
-    with localcontext() as context:
-        context.prec = max(a.count, b.count) * 16 + 32
+    with localcontext(_context(max(a.count, b.count) * 16 + 32)):
         measures = tuple(
             ComparisonMeasure(label, getattr(a, key), getattr(b, key),
                               getattr(a, key) - getattr(b, key), method)
@@ -134,11 +148,10 @@ def compare_periods(
 def _display(value: Decimal, signed: bool) -> str:
     if not isinstance(value, Decimal) or not value.is_finite():
         raise ValidationError("Não é possível exibir uma taxa inválida.")
-    with localcontext() as context:
-        context.prec = max(32, len(value.as_tuple().digits) + abs(value.adjusted()) + 4)
+    with localcontext(_context(max(32, len(value.as_tuple().digits) + abs(value.adjusted()) + 4))):
         rounded = value.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
     if rounded == 0:
-        rounded = abs(rounded)
+        rounded = rounded.copy_abs()
         signed = False
     return format(rounded, "+.2f" if signed else ".2f").replace(".", ",")
 

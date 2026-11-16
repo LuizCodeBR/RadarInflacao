@@ -130,6 +130,7 @@ with st.expander("Entenda os indicadores e os cálculos"):
         "(https://www4.bcb.gov.br/pec/correcao/metodologiaInd.asp?frame=1)"
     )
 
+st.caption("O download usa os dados desta tela. Atualize a página para incorporar novas coletas.")
 st.subheader("Comparar períodos")
 st.caption(f"Período A: {start} a {end} · {len(filtered)} meses · definido pelos filtros acima.")
 comparison_labels = {
@@ -211,7 +212,7 @@ else:
     st.download_button(
         "Baixar CSV da comparação", comparison_csv_bytes(comparison),
         file_name=f"comparacao-{start}-{end}-vs-{start_b}-{end_b}.csv",
-        mime="text/csv", key="comparison_csv",
+        mime="text/csv", key="comparison_csv", on_click="ignore",
     )
 
 chart = pd.DataFrame(
@@ -227,13 +228,16 @@ chart = pd.DataFrame(
 st.subheader("Evolução no período A")
 st.line_chart(chart, x_label="Mês", y_label="Variação (%)")
 st.caption("Taxa mensal e acumulado em 12 meses têm janelas diferentes de medição.")
-st.download_button(
-    "Baixar CSV do período",
-    csv_bytes(filtered),
-    file_name=f"radar-inflacao-{start}-a-{end}.csv",
-    mime="text/csv",
-    key="csv",
-)
+try:
+    monthly_csv = csv_bytes(filtered)
+except RadarError as error:
+    st.error(f"Exportação indisponível: {error}")
+else:
+    st.download_button(
+        "Baixar CSV do período", monthly_csv,
+        file_name=f"radar-inflacao-{start}-a-{end}.csv",
+        mime="text/csv", key="csv", on_click="ignore",
+    )
 
 with st.expander("Tabela, origem e qualidade", expanded=True):
     table = [
