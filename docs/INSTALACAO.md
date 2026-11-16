@@ -57,3 +57,7 @@ O esquema migra de 2 para 3, em transação, preservando observações e tentati
 Neste computador, foi criada uma cópia anterior do banco em D:/Projetos/RadarInflacao/.cache/antes-migracao040. A migração conservou 82 registros nacionais, 738 dos grupos e as tentativas anteriores, sem mudanças retrospectivas inventadas.
 
 Novos comandos: quality, quality-export e quality-demo. Somente quality-demo usa a pasta fixa do exemplo e recusa --data-dir para impedir que o cenário seja criado sobre outra base. quality e quality-export aceitam a opção global --data-dir ou RADAR_DATA_DIR para consultar outra base. [Guia e exemplos](QUALIDADE.md).
+
+## Atualização para 0.5.0
+
+Mesmas dependências, sem extensão nova. A opção Comparar áreas prepara sua amostra na primeira abertura, sem rede. Atualizar pelo IBGE e atualizar.cmd incluem nacional, grupos e áreas. CLI permite restringir com --dataset areas. O banco migra para esquema 4; preserve data/ com o aplicativo encerrado antes de substituir outra instalação. Nesta máquina, a cópia anterior ficou em D:/Projetos/RadarInflacao/.cache/antes-migracao050. A migração preservou todos os conjuntos/históricos anteriores e acrescentou 1394 registros regionais. [Guia das áreas](AREAS.md).

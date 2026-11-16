@@ -1,8 +1,8 @@
-# Arquitetura — Radar da Inflação 0.4.1
+# Arquitetura — Radar da Inflação 0.5.0
 
 ## Escopo e escolhas
 
-Uma aplicação Python com módulos por responsabilidade. Interface, CLI e testes chamam o mesmo pipeline. O produto cobre três medidas oficiais do IPCA nacional desde 2020, comparações locais, uma fonte e atualização manual.
+Uma aplicação Python com módulos por responsabilidade. Interface, CLI e testes chamam o mesmo pipeline. O produto cobre o IPCA nacional, nove grupos de despesas e o índice geral das 16 áreas pesquisadas, desde 2020, com comparações locais, uma fonte e atualização manual.
 
 | Módulo | Responsabilidade |
 | --- | --- |
@@ -35,7 +35,7 @@ Uma aplicação Python com módulos por responsabilidade. Interface, CLI e teste
 
 ## Persistência e concorrência
 
-observation tem uma linha por mês, três DECIMAL(14,6) e vínculo à última coleta que conferiu o mês. ingestion guarda modo, origem, período, hashes, situação e contagens de novos/corrigidos/sem alteração. schema_version=3 recusa versão desconhecida e migra versões 1/2 pelas etapas transacionais correspondentes.
+observation tem uma linha por mês, três DECIMAL(14,6) e vínculo à última coleta que conferiu o mês. ingestion guarda modo, origem, período, hashes, situação e contagens de novos/corrigidos/sem alteração. schema_version=4 recusa versão desconhecida e migra versões 1/2/3 pelas etapas transacionais correspondentes.
 
 FileLock usa bloqueio entre processos; a aplicação mantém o lock durante a operação e fecha a conexão depois. Isso também coordena consultas da interface/CLI e atualizações. Custo: durante coleta, uma consulta concorrente pode ser recusada para nova tentativa. Esta arquitetura é local, em um computador e disco convencional; não declara suporte a pasta sincronizada, compartilhamento de rede ou múltiplos servidores.
 
@@ -145,3 +145,18 @@ O exportador compara total com quantidade disponível, valida unicidade e corres
 A demonstração confere marcador limitado, banco existente, execuções simuladas e caminhos sem redirecionamentos nos pontos verificados. O painel e comandos de mutação recusam a pasta reservada como base principal; comandos de leitura/exportação continuam disponíveis. O bloqueio de preparação coordena as instâncias da aplicação. As verificações de caminhos reduzem redirecionamentos acidentais e não constituem uma barreira contra um processo externo que possa trocar arquivos durante a operação.
 
 [Resultados, reproduções, testes e limites](REVISAO-0.4.1.md).
+
+
+## Dimensão regional na versão 0.5.0
+
+areas.py define chaves compostas nível:código, contratos de metadados/respostas/pacote, validação de linhas, seleção, ranking e comparação. area_source.py consulta lotes de até 24 meses e só devolve o pacote completo após validar cada resposta. area_pipeline.py reutiliza o fluxo transacional; Pipeline ganhou pontos explícitos para conjunto e publicação, preservando os fluxos nacional e de grupos.
+
+area_storage.py migra 3→4 e guarda area_dimension, area_ingestion, area_observation e area_change. A dimensão tem 17 chaves, incluindo Brasil. area_change mantém chave própria area_key; a consulta unificada da central a apresenta internamente sob o mesmo alias usado por seu filtro comum, com área e grupo identificados separadamente na interface/CSV.
+
+O pacote de respostas preserva URL, SHA individual e corpo UTF-8 original. SHA do pacote é o identificador de procedência das linhas, armazenadas com três decimais oficiais por área/mês. A referência Brasil vem da mesma tabela e transação, independentemente do conjunto nacional 1737.
+
+area_report.py valida o recorte e a referência, calcula diferenças em contexto Decimal próprio e publica bytes antes de escrever. area_view.py desenha gráficos com dados inline limitados, sem alterar configuração global do Altair. A tela usa um snapshot coordenado e os downloads não executam novamente a consulta no clique.
+
+A migração é transacional; falha desfaz estruturas novas. A aplicação principal pode abrir bancos 1/2/3 e encadeia as migrações até 4. Instalações antigas não abrem 4. O histórico pré-existente é preservado; o regional começa quando seus dados são importados.
+
+[Guia e limites regionais](AREAS.md) · [Validação](VALIDACAO-0.5.0.md).

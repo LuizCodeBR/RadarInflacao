@@ -45,13 +45,24 @@ def run_id(value):
     return value
 
 
-def validate_filters(dataset="all", start=None, end=None, kind="CHANGED", group_id=None):
-    if dataset not in ("national", "groups", "all") or kind not in ("all", "ADDED", "CHANGED"):
+def validate_filters(
+    dataset="all", start=None, end=None, kind="CHANGED", group_id=None, area_key=None
+):
+    if dataset not in ("national", "groups", "areas", "all") or kind not in (
+        "all",
+        "ADDED",
+        "CHANGED",
+    ):
         raise ValidationError("Filtro de histórico inválido.")
     if group_id is not None and (
         dataset != "groups" or not isinstance(group_id, str) or group_id not in GROUPS
     ):
         raise ValidationError("O filtro de grupo exige o conjunto Nove grupos e um ID válido.")
+    if area_key is not None:
+        from .areas import LOCATIONS
+
+        if dataset != "areas" or not isinstance(area_key, str) or area_key not in LOCATIONS:
+            raise ValidationError("O filtro de área exige o conjunto Áreas do IPCA e ID válido.")
     if start is not None:
         month(start)
     if end is not None:

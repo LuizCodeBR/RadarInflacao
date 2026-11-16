@@ -41,3 +41,14 @@ Capturas reais em servidor local. A demonstração está ativada e explicitament
 <img src="qualidade-mobile.png" alt="Central de qualidade no navegador de celular emulado" width="360">
 
 As capturas da central foram atualizadas na revisão 0.4.1, incluindo a legenda dos filtros efetivamente aplicados. Os cenários continuam explicitamente simulados.
+
+
+## Áreas do IPCA — 0.5.0
+
+Capturas reais no Chromium local, com a amostra oficial de janeiro/2020 a outubro/2026. Seleção padrão São Paulo, Rio de Janeiro e Brasília, com Brasil no gráfico, período novembro/2024–outubro/2026. Ranking mensal de outubro/2026. Desktop 1440 pixels e mobile emulado 412 pixels, sem transbordamento da página. A tabela larga possui rolagem horizontal.
+
+![Comparação regional](areas-desktop.png)
+
+![Ranking e diferenças](areas-ranking.png)
+
+<img src="areas-mobile.png" alt="Análise regional no navegador de celular emulado" width="360">

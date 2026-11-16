@@ -4,6 +4,7 @@ import math
 
 import streamlit as st
 
+from .areas import LOCATIONS
 from .audit import DATASETS, FIELDS, MAX_CHANGES
 from .errors import RadarError
 from .groups import GROUPS
@@ -34,7 +35,9 @@ def change_table(rows):
         {
             "Conjunto": DATASETS[r["dataset"]],
             "Mês": r["period"],
-            "Grupo": GROUPS.get(r["group_id"], "Índice geral"),
+            "Grupo / área": LOCATIONS[r["group_id"]]
+            if r["dataset"] == "areas"
+            else GROUPS.get(r["group_id"], "Índice geral"),
             "Indicador": FIELDS[r["field"]],
             "Evento": "Inclusão" if r["kind"] == "ADDED" else "Alteração detectada",
             "Anterior (%)": "Não disponível" if r["old_value"] is None else _number(r["old_value"]),
@@ -99,10 +102,18 @@ def render_quality(repository, root):
             format_func=lambda x: GROUPS.get(x, "Todos os grupos"),
             key=f"q_group_{key}",
         )
+    area = None
+    if dataset == "areas":
+        area = st.selectbox(
+            "Área do histórico",
+            [None, *LOCATIONS],
+            format_func=lambda x: LOCATIONS.get(x, "Todas as áreas"),
+            key=f"q_area_{key}",
+        )
     try:
         report = build_quality(
             repository.quality_snapshot(
-                dataset=dataset, start=start, end=end, kind=kind, group_id=group
+                dataset=dataset, start=start, end=end, kind=kind, group_id=group, area_key=area
             )
         )
     except RadarError as error:
@@ -112,7 +123,7 @@ def render_quality(repository, root):
     st.caption(
         f"Histórico aplicado: {DATASETS.get(dataset, 'Todos')} · {EVENTS[kind]} · "
         f"{start or 'início da base'} a {end or 'fim da base'} · "
-        f"{GROUPS.get(group, 'Todos os grupos')}. "
+        f"{LOCATIONS.get(area, GROUPS.get(group, 'Todos os grupos e áreas'))}. "
         "Após editar um mês, pressione Enter e aguarde a atualização antes de baixar."
     )
     st.subheader("Situação das bases")
@@ -187,7 +198,7 @@ def render_quality(repository, root):
                 max_value=pages,
                 value=1,
                 step=1,
-                key=f"q_page_{key}_{dataset}_{kind}_{start}_{end}_{group}",
+                key=f"q_page_{key}_{dataset}_{kind}_{start}_{end}_{group}_{area}",
             )
             st.dataframe(
                 change_table(report["changes"][(page - 1) * 50 : page * 50]),

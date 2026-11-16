@@ -1,8 +1,8 @@
 # Radar da Inflação
 
-Pipeline de dados públicos do **IPCA nacional**, com Python, SQL/DuckDB e painel Streamlit. Coleta dados do IBGE, valida o contrato da fonte, preserva a última base válida e registra origem, hash e resultado de cada execução.
+Pipeline de dados públicos do **IPCA nacional e das 16 áreas pesquisadas**, com Python, SQL/DuckDB e painel Streamlit. Coleta dados do IBGE, valida o contrato da fonte, preserva a última base válida e registra origem, hash e resultado de cada execução.
 
-**Versão 0.4.1 · execução local · sem conta, chave de API ou recurso pago.**
+**Versão 0.5.0 · execução local · sem conta, chave de API ou recurso pago.**
 
 ![Painel do Radar da Inflação](docs/imagens/painel-desktop.png)
 
@@ -44,6 +44,10 @@ O iniciador prepara o ambiente e abre o mesmo painel local. A validação realiz
 
 ## O que funciona
 
+- Comparação das 16 áreas do IPCA com o Brasil: evolução, ranking mensal, diferenças em pontos percentuais e comparação A/B.
+- Três CSVs regionais com referência oficial do Brasil e procedência dos dados.
+- Amostra regional offline: 1394 registros, 82 meses × (16 áreas + Brasil), tabela 7060.
+
 - Amostra real do IBGE: janeiro/2020 a outubro/2026, 82 meses e três medidas por mês.
 - Filtros de início/fim, indicadores oficiais, gráfico e tabela com procedência.
 - Comparação com período anterior de mesma duração, mesmo período do ano anterior ou intervalo manual.
@@ -54,7 +58,7 @@ O iniciador prepara o ambiente e abre o mesmo painel local. A validação realiz
 - CSV da qualidade e das mudanças filtradas; demonstração offline isolada.
 - Análise dos nove grupos: evolução, ranking mensal, peso, comparação A/B e três CSVs.
 - Amostra dos grupos com 738 registros (82 meses × nove grupos) e ausência histórica identificada.
-- Migração automática do banco do esquema 1 para 2, preservando o índice geral.
+- Migração automática dos esquemas 1/2/3 para 4, preservando dados e histórico anteriores.
 - CSV UTF-8 com BOM, ponto e vírgula e vírgula decimal.
 - Atualização sob demanda pela API do IBGE.
 - Reconsulta dos últimos 24 meses existentes e busca de meses novos, sem duplicação.
@@ -122,13 +126,35 @@ Atualizar pelo IBGE e atualizar.cmd atendem ao índice geral e aos grupos. Cada 
 
 ![Grupos do IPCA](docs/imagens/grupos-desktop.png)
 
+## Comparar as 16 áreas — 0.5.0
+
+Em Análise, escolha **Comparar áreas**. A primeira abertura dessa seção importa a amostra regional sem consultar a rede. Selecione uma ou mais áreas, período e indicador do gráfico. O Brasil vem da mesma tabela 7060 e acompanha cada comparação; não é recalculado como média das localidades.
+
+O ranking ordena a variação mensal das áreas selecionadas. A tabela apresenta também acumulados oficiais e diferenças Área − Brasil em pontos percentuais. As áreas representam recortes pesquisados, não todos os municípios ou todo o estado. Maior inflação não significa maior custo de vida.
+
+A comparação A/B mantém as janelas oficiais e identifica o acumulado do intervalo como estimativa por composição das taxas publicadas. Há CSV do período/diferenças, do ranking e da comparação A/B. Downloads usam o mesmo retrato da tela; acumulados em 12 meses de janeiro–novembro/2020 ficam indisponíveis, sem virar zero.
+
+![Comparação regional](docs/imagens/areas-desktop.png)
+
+~~~powershell
+.\.venv\Scripts\python.exe -m radar_inflacao demo --dataset areas
+.\.venv\Scripts\python.exe -m radar_inflacao update --dataset areas
+.\.venv\Scripts\python.exe -m radar_inflacao export --dataset areas --areas N7:3501 N6:5300108 --from 2024-01 --to 2024-03 --output exports\areas.csv
+~~~
+
+O botão Atualizar pelo IBGE e os comandos demo/update sem --dataset agora incluem os três conjuntos. Falhas de um conjunto são informadas sem atribuir sucesso aos demais indevidamente. O lote regional publica suas 16 áreas e o Brasil numa única transação.
+
+A versão 0.5.0 migra o banco para esquema 4, preservando os conjuntos anteriores. Encerre o aplicativo e preserve data/ antes de atualizar outra instalação. Versões até 0.4.1 recusam esquema 4.
+
+[Guia regional](docs/AREAS.md) · [Validação 0.5.0](docs/VALIDACAO-0.5.0.md).
+
 ## Qualidade, atualização e histórico — 0.4.1
 
 Em Análise, escolha **Qualidade e atualização**. A central mostra cobertura, taxas/pesos/ausências, procedência, última tentativa e última publicação concluída, separadamente para o índice geral e os nove grupos. As verificações usam o banco local; não consultam a internet ao abrir filtros.
 
 A disponibilidade corresponde aos últimos metadados registrados: a tela distingue amostra, consulta e simulação, com data. Uma falha após consultar metadados pode avisar que existe mês pendente, sem fazer a base anterior parecer recém-atualizada.
 
-O histórico registra inclusões e alterações por campo, com valor anterior/novo, coleta e hash. Uma reconferência sem diferença não cria alterações. Na primeira importação há 3198 inclusões de campos (82 × 3 + 738 × 4); bases existentes começam a registrar o histórico a partir da migração, sem inventar mudanças anteriores.
+O histórico registra inclusões e alterações por campo, com valor anterior/novo, coleta e hash. Uma reconferência sem diferença não cria alterações. Na primeira importação nacional e dos grupos há 3198 inclusões de campos (82 × 3 + 738 × 4), às quais se somam 4182 regionais; bases existentes começam a registrar o histórico a partir da migração, sem inventar mudanças anteriores.
 
 Para experimentar, ative **Usar demonstração offline separada**. O exemplo prepara duas alterações sintéticas, reconferências sem mudanças e uma coleta inválida recusada em .cache/quality-demo. A base principal é preservada e o CSV identifica Simulação offline. Desative o exemplo para retornar à sua base.
 
@@ -143,9 +169,9 @@ Os filtros por conjunto, evento, mês e grupo afetam o histórico. Há CSV da qu
 .\.venv\Scripts\python.exe -m radar_inflacao quality-export --report changes --kind CHANGED --output exports\mudancas.csv
 ~~~
 
-Python e dependências permanecem. A revisão 0.4.1 mantém o esquema 3 introduzido na 0.4.0. Instalações até 0.3.1 migram na primeira abertura; antes de atualizá-las, encerre o aplicativo e preserve a pasta data. Versões até 0.3.1 não abrem o esquema 3.
+Python e dependências permanecem. A versão 0.5.0 migra para esquema 4, preservando o histórico introduzido na 0.4.0. Antes de atualizar uma instalação própria, encerre o aplicativo e preserve a pasta data. Versões até 0.4.1 não abrem o esquema 4.
 
-**316 testes aprovados no Windows / Python 3.13 e 3.12**, incluindo migração, falhas, CSV e concorrência.
+**371 testes aprovados no Windows / Python 3.13 e 3.12**, incluindo 55 casos novos das áreas, migrações, falhas, CSV e concorrência.
 
 Na revisão 0.4.1, vínculos inválidos deixam de desaparecer do histórico; publicação, procedência e disponibilidade são revalidadas. CSV incompleto, duplicado ou divergente dos filtros é recusado. A demonstração tem verificações de pasta/banco e não pode receber atualizações pela CLI nem ser usada como base principal do painel. Não há nova migração ou dependência.
 
@@ -199,7 +225,7 @@ flowchart LR
     DB --> CSV[CSV / procedência]
 ~~~
 
-[Arquitetura e decisões](docs/ARQUITETURA.md) · [Testes atuais](docs/REVISAO-0.4.1.md) · [Instalação e uso](docs/INSTALACAO.md) · [Dados e limites](docs/DADOS.md).
+[Arquitetura e decisões](docs/ARQUITETURA.md) · [Testes atuais](docs/VALIDACAO-0.5.0.md) · [Instalação e uso](docs/INSTALACAO.md) · [Dados e limites](docs/DADOS.md).
 
 ## Pastas e armazenamento
 
@@ -219,4 +245,4 @@ Séries nacionais desde 2020, tabelas 1737/7060 do IBGE e arquivo local. Atualiz
 
 O projeto oferece painel web local responsivo; não publica link externo ou aplicativo nativo nesta entrega. Falhas ficam no histórico, e uma interrupção é sinalizada na próxima abertura. Arquivos brutos não substituem um backup da pasta de dados. Não há tarefa agendada ou serviço pago.
 
-**Critério de conclusão da primeira etapa:** amostra + coleta real + validação + persistência + filtros/CSV + testes + execução simples. Novas fontes, regiões e automações ficam para uma decisão separada.
+**Critério de conclusão da primeira etapa:** amostra + coleta real + validação + persistência + filtros/CSV + testes + execução simples. A versão 0.5.0 acrescenta as 16 áreas pesquisadas. Novas fontes e automações ficam para uma decisão separada.

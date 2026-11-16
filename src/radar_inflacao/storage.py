@@ -44,7 +44,7 @@ class Repository:
         row = db.execute("SELECT version FROM schema_version").fetchall()
         if not row:
             db.execute("INSERT INTO schema_version VALUES (1)")
-        elif row not in ([(1,)], [(2,)], [(3,)]):
+        elif row not in ([(1,)], [(2,)], [(3,)], [(4,)]):
             raise ValidationError(
                 "Esquema de banco incompatível. Preserve a base e use versão compatível."
             )
@@ -66,12 +66,20 @@ class Repository:
           )
         """)
 
-        if row not in ([(2,)], [(3,)]):
+        if row not in ([(2,)], [(3,)], [(4,)]):
             Repository._migrate_groups(db)
-        if row != [(3,)]:
+        if row not in ([(3,)], [(4,)]):
             from .audit import migrate
 
             migrate(db)
+        if row != [(4,)]:
+            from .area_storage import migrate as migrate_areas
+
+            migrate_areas(db)
+        db.execute(
+            """UPDATE area_ingestion SET status='INTERRUPTED',finished_at=current_timestamp,
+                error='Execução interrompida antes da conclusão.' WHERE status='RUNNING'"""
+        )
         db.execute(
             """UPDATE group_ingestion SET status='INTERRUPTED', finished_at=current_timestamp,
                  error='Execução interrompida antes da conclusão.' WHERE status='RUNNING'"""
@@ -113,7 +121,7 @@ class Repository:
         )
         return [dict(zip(names, row, strict=True)) for row in rows]
 
-    def snapshot(self, *, include_groups: bool = False) -> dict:
+    def snapshot(self, *, include_groups: bool = False, include_areas: bool = False) -> dict:
         with self.locked() as db:
             rows = self.rows(db)
             history = db.execute("""
@@ -129,7 +137,20 @@ class Repository:
                            status, inserted, updated, unchanged, error
                     FROM group_ingestion ORDER BY started_at DESC, id DESC LIMIT 20
                 """).fetchall()
+            if include_areas:
+                result["areas"] = self.area_rows(db)
+                result["areas_history"] = db.execute("""
+                    SELECT id,cast(started_at AS VARCHAR),cast(finished_at AS VARCHAR),mode,
+                           status,inserted,updated,unchanged,error
+                    FROM area_ingestion ORDER BY started_at DESC,id DESC LIMIT 20
+                """).fetchall()
             return result
+
+    @staticmethod
+    def area_rows(db):
+        from .area_storage import rows
+
+        return rows(db)
 
     def quality_snapshot(self, **filters) -> dict:
         from .audit import read_snapshot

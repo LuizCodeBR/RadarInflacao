@@ -14,6 +14,8 @@ from radar_inflacao.analysis import (
     format_rate,
     reference_period,
 )
+from radar_inflacao.area_pipeline import AreaPipeline
+from radar_inflacao.area_view import render_areas
 from radar_inflacao.cli import components, project_root
 from radar_inflacao.errors import RadarError
 from radar_inflacao.group_view import render_groups
@@ -32,16 +34,19 @@ st.markdown(
 
 view = st.radio(
     "Análise",
-    ["Índice geral", "Grupos de despesas", "Qualidade e atualização"],
+    ["Índice geral", "Grupos de despesas", "Comparar áreas", "Qualidade e atualização"],
     horizontal=True,
     key="view",
 )
 try:
     repository, pipeline = components()
     group_pipeline = GroupPipeline(repository, project_root() / "sample/groups")
+    area_pipeline = AreaPipeline(repository, project_root() / "sample/areas")
+    if view == "Comparar áreas":
+        area_pipeline.ensure_demo()
     pipeline.ensure_demo()
     group_pipeline.ensure_demo()
-    snapshot = repository.snapshot(include_groups=True)
+    snapshot = repository.snapshot(include_groups=True, include_areas=view == "Comparar áreas")
 except RadarError as error:
     st.error(str(error))
     st.stop()
@@ -60,7 +65,11 @@ with st.sidebar:
     if st.button("Atualizar pelo IBGE", type="primary", key="update", disabled=simulation_active):
         completed, errors = [], []
         with st.spinner("Consultando e validando o IBGE…"):
-            for label, worker in [("Índice geral", pipeline), ("Grupos", group_pipeline)]:
+            for label, worker in [
+                ("Índice geral", pipeline),
+                ("Grupos", group_pipeline),
+                ("Áreas", area_pipeline),
+            ]:
                 try:
                     result = worker.update(full=full)
                     completed.append(
@@ -84,6 +93,12 @@ for error in st.session_state.pop("update_errors", []):
 if view == "Qualidade e atualização":
     render_quality(repository, project_root())
     st.caption(f"Radar da Inflação {__version__} · Central local, sem consulta automática.")
+    st.stop()
+if view == "Comparar áreas":
+    render_areas(snapshot["areas"], snapshot["areas_history"])
+    st.caption(
+        f"Radar da Inflação {__version__} · Áreas pesquisadas, sem cobertura de todo estado."
+    )
     st.stop()
 if view == "Grupos de despesas":
     render_groups(snapshot["groups"], snapshot["groups_history"])

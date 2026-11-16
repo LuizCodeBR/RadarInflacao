@@ -6,6 +6,7 @@ import csv
 import io
 
 from .analysis import validated_rate
+from .areas import LOCATIONS
 from .audit import DATASETS, FIELDS, MAX_CHANGES
 from .audit_contract import STAGES as STAGES
 from .audit_contract import run_id as _uuid
@@ -35,7 +36,9 @@ def quality_csv_bytes(report):
         code = item["dataset"]
         if code not in DATASETS or item["grade"] not in STATUSES:
             raise ValidationError("Conjunto ou situação inválido no relatório.")
-        if type(item["count"]) is not int or not 0 <= item["count"] <= 10800:
+        if type(item["count"]) is not int or not 0 <= item["count"] <= (
+            20400 if code == "areas" else 10800
+        ):
             raise ValidationError("Quantidade de registros inválida.")
         attempt, success = item["latest_attempt"], item["latest_success"]
         reference = item["reference"]
@@ -118,6 +121,7 @@ def changes_csv_bytes(snapshot):
             or row["run_status"] != "SUCCESS"
             or (code == "national" and (group != "" or field == "weight"))
             or (code == "groups" and group not in GROUPS)
+            or (code == "areas" and (group not in LOCATIONS or field == "weight"))
         ):
             raise ValidationError("Mudança inválida no histórico.")
         period = month(row["period"])
@@ -131,6 +135,7 @@ def changes_csv_bytes(snapshot):
             (filters["dataset"] != "all" and code != filters["dataset"])
             or (filters["kind"] != "all" and row["kind"] != filters["kind"])
             or (filters["group_id"] is not None and group != filters["group_id"])
+            or (filters.get("area_key") is not None and group != filters["area_key"])
             or (filters["start"] is not None and period < filters["start"])
             or (filters["end"] is not None and period > filters["end"])
         ):
@@ -146,7 +151,9 @@ def changes_csv_bytes(snapshot):
         numbers = []
         for index, value in enumerate((old, new)):
             allowed_blank = (index == 0 and row["kind"] == "ADDED") or (
-                code == "groups" and field == "twelve_month" and "2020-01" <= period < "2020-12"
+                code in ("groups", "areas")
+                and field == "twelve_month"
+                and "2020-01" <= period < "2020-12"
             )
             if value is None:
                 if not allowed_blank:
@@ -165,8 +172,10 @@ def changes_csv_bytes(snapshot):
                 generated,
                 DATASETS[code],
                 period,
-                group,
-                GROUPS[group] if group else "Índice geral",
+                group if code == "groups" else "",
+                GROUPS[group] if code == "groups" else "Índice geral",
+                group if code == "areas" else "",
+                LOCATIONS[group] if code == "areas" else "",
                 FIELDS[field],
                 "Inclusão" if row["kind"] == "ADDED" else "Alteração detectada",
                 *numbers,
@@ -185,6 +194,8 @@ def changes_csv_bytes(snapshot):
             "Mes",
             "Grupo ID",
             "Grupo",
+            "Area ID",
+            "Area",
             "Indicador",
             "Evento",
             "Valor anterior (%)",

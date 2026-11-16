@@ -7,9 +7,12 @@ import json
 import os
 from pathlib import Path
 
+from .area_pipeline import AreaPipeline
+from .area_report import area_csv_bytes
+from .areas import AREAS, LOCATIONS
 from .errors import RadarError, ValidationError
 from .groups import GROUPS, filter_group_rows
-from .model import month
+from .model import month, periods
 from .pipeline import GroupPipeline, Pipeline
 from .report import csv_bytes, group_csv_bytes, publish_csv
 from .storage import Repository
@@ -51,9 +54,9 @@ def main(argv=None) -> int:
     )
     sub = parser.add_subparsers(dest="command", required=True)
     demo = sub.add_parser("demo", help="Importa as amostras locais validadas, sem internet")
-    demo.add_argument("--dataset", choices=["all", "national", "groups"], default="all")
+    demo.add_argument("--dataset", choices=["all", "national", "groups", "areas"], default="all")
     update = sub.add_parser("update", help="Consulta o IBGE sob demanda")
-    update.add_argument("--dataset", choices=["all", "national", "groups"], default="all")
+    update.add_argument("--dataset", choices=["all", "national", "groups", "areas"], default="all")
     update.add_argument(
         "--full", action="store_true", help="Reconcilia desde 2020, incluindo revisões antigas"
     )
@@ -61,16 +64,20 @@ def main(argv=None) -> int:
     sub.add_parser("quality-demo", help="Cria demonstração offline em .cache/quality-demo")
     quality_export = sub.add_parser("quality-export", help="Exporta qualidade ou mudanças em CSV")
     quality_export.add_argument("--report", choices=["summary", "changes"], default="summary")
-    quality_export.add_argument("--dataset", choices=["all", "national", "groups"], default="all")
+    quality_export.add_argument(
+        "--dataset", choices=["all", "national", "groups", "areas"], default="all"
+    )
     quality_export.add_argument("--kind", choices=["all", "ADDED", "CHANGED"], default="CHANGED")
     quality_export.add_argument("--group", choices=list(GROUPS))
+    quality_export.add_argument("--area", choices=list(LOCATIONS))
     quality_export.add_argument("--from", dest="start", type=month_argument)
     quality_export.add_argument("--to", dest="end", type=month_argument)
     quality_export.add_argument("--output", type=Path, required=True)
     sub.add_parser("status", help="Mostra cobertura e última execução")
     export = sub.add_parser("export", help="Exporta a base sem substituir arquivo existente")
-    export.add_argument("--dataset", choices=["national", "groups"], default="national")
+    export.add_argument("--dataset", choices=["national", "groups", "areas"], default="national")
     export.add_argument("--groups", nargs="+", choices=list(GROUPS), default=list(GROUPS))
+    export.add_argument("--areas", nargs="+", choices=list(AREAS), default=list(AREAS))
     export.add_argument("--from", dest="start", type=month_argument)
     export.add_argument("--to", dest="end", type=month_argument)
     export.add_argument("--output", type=Path, required=True)
@@ -101,6 +108,7 @@ def main(argv=None) -> int:
                     "dataset": args.dataset,
                     "kind": args.kind,
                     "group_id": args.group,
+                    "area_key": args.area,
                     "start": args.start,
                     "end": args.end,
                 }
@@ -128,10 +136,12 @@ def main(argv=None) -> int:
                 result = {"file": str(args.output.resolve()), "report": args.report}
         elif args.command in ("demo", "update"):
             group_pipeline = GroupPipeline(repository, project_root() / "sample/groups")
+            area_pipeline = AreaPipeline(repository, project_root() / "sample/areas")
+            all_workers = {"national": pipeline, "groups": group_pipeline, "areas": area_pipeline}
             workers = (
-                [("national", pipeline), ("groups", group_pipeline)]
+                list(all_workers.items())
                 if args.dataset == "all"
-                else [(args.dataset, pipeline if args.dataset == "national" else group_pipeline)]
+                else [(args.dataset, all_workers[args.dataset])]
             )
             results, failures = {}, {}
             for label, worker in workers:
@@ -153,13 +163,14 @@ def main(argv=None) -> int:
                     )
                 )
                 return 2
-            result = results.get("national", results.get("groups"))
+            result = results.get("national", results.get("groups", results.get("areas")))
             if args.dataset == "all":
-                result = {**result, "groups": results["groups"]}
+                result = {**result, "groups": results["groups"], "areas": results["areas"]}
         elif args.command == "status":
-            snapshot = repository.snapshot(include_groups=True)
+            snapshot = repository.snapshot(include_groups=True, include_areas=True)
             rows = snapshot["rows"]
             result = {
+                "areas_rows": len(snapshot["areas"]),
                 "groups_rows": len(snapshot["groups"]),
                 "rows": len(rows),
                 "from": rows[0]["period"] if rows else None,
@@ -170,7 +181,9 @@ def main(argv=None) -> int:
         else:
             with repository.locked() as db:
                 rows = (
-                    repository.group_rows(db, args.start, args.end)
+                    repository.area_rows(db)
+                    if args.dataset == "areas"
+                    else repository.group_rows(db, args.start, args.end)
                     if args.dataset == "groups"
                     else repository.rows(db, args.start, args.end)
                 )
@@ -183,12 +196,29 @@ def main(argv=None) -> int:
                 )
             if not rows:
                 raise RadarError("Nenhum mês encontrado para exportar.")
-            data = group_csv_bytes(rows) if args.dataset == "groups" else csv_bytes(rows)
+            data = (
+                area_csv_bytes(
+                    rows,
+                    args.areas,
+                    args.start or rows[0]["period"],
+                    args.end or rows[-1]["period"],
+                )
+                if args.dataset == "areas"
+                else group_csv_bytes(rows)
+                if args.dataset == "groups"
+                else csv_bytes(rows)
+            )
             try:
                 publish_csv(args.output, data)
             except FileExistsError as exc:
                 raise RadarError("O arquivo já existe. Escolha outro destino.") from exc
-            result = {"exported": len(rows), "file": str(args.output.resolve())}
+            count = (
+                len(args.areas)
+                * len(periods(args.start or rows[0]["period"], args.end or rows[-1]["period"]))
+                if args.dataset == "areas"
+                else len(rows)
+            )
+            result = {"exported": count, "file": str(args.output.resolve())}
         print(json.dumps(result, ensure_ascii=False, default=str))
         return 0
     except (RadarError, OSError) as exc:

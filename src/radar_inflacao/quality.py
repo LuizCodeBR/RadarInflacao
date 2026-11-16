@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from .analysis import validated_rate
+from .areas import LOCATIONS, filter_area_rows, validate_area_rows
 from .audit import DATASETS
 from .audit_contract import validate_reference, validate_run
 from .errors import RadarError
@@ -11,28 +12,34 @@ from .model import BASE_MONTH, month, periods
 from .report import _provenance
 
 CHECKS = {
-    "coverage": "Cobertura de meses e grupos",
+    "coverage": "Cobertura de meses, grupos e áreas",
     "values": "Taxas, pesos e ausências",
     "provenance": "Identificação da origem",
     "availability": "Disponibilidade na última consulta",
 }
 
 
-def _coverage(rows, grouped):
+def _coverage(rows, grouped, regional=False):
     if not rows:
         return "EMPTY", "Ainda não há observações publicadas."
     months = sorted({month(r.get("period")) for r in rows})
     expected = periods(BASE_MONTH, months[-1])
-    if grouped:
+    if regional:
+        filter_area_rows(rows, list(LOCATIONS), BASE_MONTH, months[-1], brazil=True)
+    elif grouped:
         filter_group_rows(rows, list(GROUPS), BASE_MONTH, months[-1])
     elif [r["period"] for r in rows] != expected:
         return "ERROR", "A série deve ter todos os meses desde 2020, sem duplicações."
     return "OK", f"{len(expected)} meses completos desde 2020-01."
 
 
-def _values(rows, grouped):
+def _values(rows, grouped, regional=False):
     if not rows:
         return "EMPTY", "Sem dados para verificar."
+    if regional:
+        validate_area_rows(rows)
+        missing = sum(r["twelve_month"] is None for r in rows)
+        return "OK", f"Três medidas por área e Brasil; {missing} ausências históricas de 12 meses."
     if grouped:
         validate_group_rows(rows)
         missing = sum(r["twelve_month"] is None for r in rows)
@@ -86,10 +93,21 @@ def build_quality(snapshot):
     result = []
     for item in snapshot["datasets"]:
         rows, grouped = item["rows"], item["dataset"] == "groups"
+        regional = item["dataset"] == "areas"
         checks = []
         for code, check in [
-            ("coverage", lambda rows=rows, grouped=grouped: _coverage(rows, grouped)),
-            ("values", lambda rows=rows, grouped=grouped: _values(rows, grouped)),
+            (
+                "coverage",
+                lambda rows=rows, grouped=grouped, regional=regional: _coverage(
+                    rows, grouped, regional
+                ),
+            ),
+            (
+                "values",
+                lambda rows=rows, grouped=grouped, regional=regional: _values(
+                    rows, grouped, regional
+                ),
+            ),
             ("provenance", lambda item=item: _origin(item)),
             ("availability", lambda rows=rows, item=item: _availability(rows, item["reference"])),
         ]:

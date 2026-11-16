@@ -61,3 +61,7 @@ Um hash identifica uma resposta arquivada, mas não é assinatura de autenticida
 CSV de histórico distingue inclusão e alteração, valores anteriores/novos, grupo, mês, indicador, modo, momento e IDs/hash. CSV de qualidade registra oito verificações (quatro por conjunto) e o contexto operacional/temporal. Na simulação, o modo é identificado nos dois relatórios; valores artificiais não se tornam dados oficiais.
 
 A indicação de disponibilidade depende dos metadados válidos efetivamente observados. Amostra informa sua data original; consulta online informa a data da verificação; ausência de metadados registrados é Não verificado. Abrir a central ou mudar de mês no calendário não dispara consulta ao IBGE. [Guia da central](QUALIDADE.md).
+
+## Áreas a partir de 0.5.0
+
+A amostra em sample/areas preserva 82 meses × 17 localidades (16 áreas e Brasil), 1394 registros e 187 ausências históricas de 12 meses. Origem 7060/315/7169; três medidas oficiais. As respostas são preservadas em pacote com corpo, URL e hash de cada lote de até 24 meses. A referência brasileira acompanha o lote regional, sem recalcular média de localidades. [Abrangência, métodos, precisão e limites](AREAS.md).

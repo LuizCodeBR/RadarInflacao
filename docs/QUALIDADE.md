@@ -1,10 +1,10 @@
-# Central de qualidade e atualização — 0.4.1
+# Central de qualidade e atualização — 0.5.0
 
 ## Usar no painel
 
 1. Execute iniciar.cmd; abra http://localhost:8501.
 2. Em Análise, escolha Qualidade e atualização.
-3. Consulte os dois conjuntos: índice geral e nove grupos. Cada um mostra registros, período, origem, última tentativa, última publicação e quatro verificações.
+3. Consulte os três conjuntos: índice geral, nove grupos e áreas do IPCA. Cada um mostra registros, período, origem, última tentativa, última publicação e quatro verificações.
 4. Use filtros do histórico por conjunto, tipo de evento, mês e grupo. Deixe meses vazios para não restringir. O grupo fica disponível ao escolher Nove grupos.
 5. Baixe CSV da qualidade ou CSV das mudanças filtradas.
 
@@ -29,7 +29,7 @@ Há 20 tentativas recentes por conjunto na tabela; última publicação e refer�
 
 ## Histórico por campo
 
-Cada inclusão é um evento por indicador. Exemplo: um mês nacional novo gera três inclusões; um mês dos grupos gera 36. Na amostra inicial há 3198 inclusões: 82 × 3 + 738 × 4. Os 99 campos históricos vazios também são inclusões explícitas, sem valor numérico novo.
+Cada inclusão é um evento por indicador. Exemplo: um mês nacional novo gera três inclusões; um mês dos grupos gera 36. Nas duas amostras nacionais há 3198 inclusões: 82 × 3 + 738 × 4. A regional acrescenta 4182 (1394 × 3), totalizando 7380 numa importação dos três conjuntos. Os 99 campos históricos vazios também são inclusões explícitas, sem valor numérico novo.
 
 Alterações detectadas guardam mês, grupo, indicador, antes/depois, coleta anterior/atual, horário e hash da resposta atual. Uma nova conferência de valores iguais não cria alterações, mesmo que mude sua procedência. Não se atribui automaticamente uma revisão oficial a uma divergência observada entre coletas.
 
@@ -54,7 +54,7 @@ A preparação repetida reutiliza o cenário sem acrescentar novas tentativas. P
 
 CSV UTF-8 com BOM, ponto e vírgula, linhas CRLF e vírgula decimal, sem arredondar os valores guardados. Ausência válida fica vazia. Valor anterior vazio em Inclusão significa que ainda não existia aquele registro, distinguível do indicador histórico indisponível pelo tipo do evento e seu campo.
 
-Relatório de qualidade: uma linha por verificação (oito nas duas bases), situação, período/quantidade, última tentativa/publicação, início do histórico, modos, etapa/detalhe da falha e referência dos metadados. Refere-se às bases completas; filtros do histórico não restringem as verificações.
+Relatório de qualidade: uma linha por verificação (doze nos três conjuntos), situação, período/quantidade, última tentativa/publicação, início do histórico, modos, etapa/detalhe da falha e referência dos metadados. Refere-se às bases completas; filtros do histórico não restringem as verificações.
 
 Relatório de mudanças: uma linha por evento, com filtros aplicados. A tabela exibe páginas de 50, mas o CSV contém todos os eventos filtrados até o limite de 10000, não apenas a página. Se exceder, a exportação é recusada e pede refinamento. O total encontrado é explícito. O histórico armazenado não é removido automaticamente.
 
@@ -77,8 +77,12 @@ quality não importa amostras nem consulta a rede. Em base vazia informa Sem dad
 
 ## Armazenamento e compatibilidade
 
-Arquivos desta instalação em D:/Projetos/RadarInflacao. A revisão 0.4.1 conserva o esquema 3, sem nova migração. Esquema 3: migração transacional de 2→3 e encadeada de 1→2→3. Não há dependência nova, conta, recurso pago, serviço de banco ou tarefa agendada. Iniciadores Windows/Linux permanecem; Windows validado, execução nativa Linux/macOS e celular físico não foram feitos nesta etapa.
+Arquivos desta instalação em D:/Projetos/RadarInflacao. A versão 0.5.0 usa esquema 4, com migração transacional de 3→4 e encadeada de 1→2→3→4. Não há dependência nova, conta, recurso pago, serviço de banco ou tarefa agendada. Iniciadores Windows/Linux permanecem; Windows validado, execução nativa Linux/macOS e celular físico não foram feitos nesta etapa.
 
-Antes de atualizar outra instalação, encerre o aplicativo e preserve data/. O código antigo recusa esquema 3. Não use a base em pasta de rede/sincronizada com múltiplos escritores. Bloqueios e transações só coordenam programas que respeitam o protocolo do projeto.
+Antes de atualizar outra instalação, encerre o aplicativo e preserve data/. Versões até 0.4.1 recusam esquema 4. Não use a base em pasta de rede/sincronizada com múltiplos escritores. Bloqueios e transações só coordenam programas que respeitam o protocolo do projeto.
 
 [Revisão 0.4.1](REVISAO-0.4.1.md) · [Validação inicial](VALIDACAO-0.4.0.md) · [Arquitetura](ARQUITETURA.md).
+
+## Áreas na versão 0.5.0
+
+O terceiro conjunto Áreas do IPCA inclui as 16 áreas e Brasil da tabela 7060. Tem quatro verificações, histórico por campo e filtro de área, inclusive Brasil. O resumo CSV contém doze verificações nos três conjuntos. O CSV de mudanças acrescenta Area ID e Area; Grupo ID continua específico dos grupos. O limite de 10000 eventos continua por recorte. A demonstração offline da central mantém seus dois cenários sintéticos; o conjunto regional nela fica Sem dados. Para explorar dados regionais oficiais, use Comparar áreas na base principal. [Guia regional](AREAS.md).

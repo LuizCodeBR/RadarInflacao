@@ -8,7 +8,15 @@ from .audit_contract import validate_filters
 from .errors import ValidationError
 from .model import as_date
 
-DATASETS = {"national": "Índice geral", "groups": "Nove grupos"}
+DATASETS = {"national": "Índice geral", "groups": "Nove grupos", "areas": "Áreas do IPCA"}
+TABLES = {
+    "national": ("observation", "ingestion"),
+    "groups": ("group_observation", "group_ingestion"),
+    "areas": ("area_observation", "area_ingestion"),
+}
+CHANGES = """(SELECT * FROM data_change UNION ALL
+    SELECT dataset,run_id,period,area_key AS group_id,field,kind,old_value,new_value,
+           previous_run_id,recorded_at FROM area_change)"""
 FIELDS = {
     "monthly": "Variação mensal",
     "year_to_date": "Acumulado no ano",
@@ -80,12 +88,12 @@ def metadata_seen(db, dataset, run_id, observed_at, end, digest):
 
 
 def record_changes(db, dataset, current, observations, run_id, recorded_at):
-    previous = {(r["period"], r.get("group_id", "")): r for r in current}
+    previous = {(r["period"], r.get("area_key", r.get("group_id", ""))): r for r in current}
     fields = list(FIELDS) if dataset == "groups" else list(FIELDS)[:3]
     changes = []
     for observation in observations:
         row = asdict(observation)
-        code = row.get("group_id", "")
+        code = row.get("area_key", row.get("group_id", ""))
         old = previous.get((row["period"], code))
         for field in fields:
             if old is None or old[field] != row[field]:
@@ -104,7 +112,8 @@ def record_changes(db, dataset, current, observations, run_id, recorded_at):
                     )
                 )
     if changes:
-        db.executemany("INSERT INTO data_change VALUES (?,?,?,?,?,?,?,?,?,?)", changes)
+        table = "area_change" if dataset == "areas" else "data_change"
+        db.executemany(f"INSERT INTO {table} VALUES (?,?,?,?,?,?,?,?,?,?)", changes)
     return len(changes)
 
 
@@ -123,7 +132,7 @@ def _records(cursor):
 
 
 def _runs(db, dataset, condition="TRUE", limit=20):
-    table = "ingestion" if dataset == "national" else "group_ingestion"
+    table = TABLES[dataset][1]
     # Table/condition are internal constants, never user-provided SQL.
     return _records(
         db.execute(
@@ -145,13 +154,25 @@ def _runs(db, dataset, condition="TRUE", limit=20):
 
 
 def read_snapshot(
-    repository, db, dataset="all", start=None, end=None, kind="CHANGED", group_id=None
+    repository,
+    db,
+    dataset="all",
+    start=None,
+    end=None,
+    kind="CHANGED",
+    group_id=None,
+    area_key=None,
 ):
-    validate_filters(dataset, start, end, kind, group_id)
+    validate_filters(dataset, start, end, kind, group_id, area_key)
     datasets = []
     for code in DATASETS:
-        rows = repository.rows(db) if code == "national" else repository.group_rows(db)
-        table = "observation" if code == "national" else "group_observation"
+        readers = {
+            "national": repository.rows,
+            "groups": repository.group_rows,
+            "areas": repository.area_rows,
+        }
+        rows = readers[code](db)
+        table, run_table = TABLES[code]
         baseline = _records(
             db.execute(
                 """SELECT dataset,existing_rows,
@@ -162,14 +183,13 @@ def read_snapshot(
         )
         if len(baseline) != 1:
             raise ValidationError("Início do histórico ausente; preserve a base para conferência.")
-        run_table = "ingestion" if code == "national" else "group_ingestion"
         invalid_publications = db.execute(
             f"""SELECT count(*) FROM {table} o LEFT JOIN {run_table} i ON i.id=o.run_id
                 WHERE i.status IS DISTINCT FROM 'SUCCESS' OR i.finished_at IS NULL
                    OR day(o.period)<>1"""
         ).fetchone()[0]
         invalid_history = db.execute(
-            f"""SELECT count(*) FROM data_change c
+            f"""SELECT count(*) FROM {CHANGES} c
                 LEFT JOIN {run_table} i ON i.id=c.run_id
                 LEFT JOIN {run_table} p ON p.id=c.previous_run_id
                 WHERE c.dataset=? AND (
@@ -213,23 +233,24 @@ def read_snapshot(
         as_date(start) if start else None,
         end,
         as_date(end) if end else None,
-        group_id,
-        group_id,
+        area_key or group_id,
+        area_key or group_id,
     ]
-    total = db.execute(f"SELECT count(*) FROM data_change c WHERE {where}", params).fetchone()[0]
+    total = db.execute(f"SELECT count(*) FROM {CHANGES} c WHERE {where}", params).fetchone()[0]
     changes = _records(
         db.execute(
             f"""
         WITH runs AS (
             SELECT 'national' AS dataset,* FROM ingestion
             UNION ALL SELECT 'groups' AS dataset,* FROM group_ingestion
+            UNION ALL SELECT 'areas' AS dataset,* FROM area_ingestion
         )
         SELECT c.dataset,c.run_id,strftime(c.period,'%Y-%m') AS period,c.group_id,
                c.field,c.kind,c.old_value,c.new_value,c.previous_run_id,
                strftime(c.recorded_at,'%Y-%m-%dT%H:%M:%S.%f+00:00') AS recorded_at,
                i.mode,i.retrieved_at,i.raw_sha256,i.status AS run_status,
                p.status AS previous_run_status,day(c.period) AS period_day
-        FROM data_change c LEFT JOIN runs i ON i.id=c.run_id AND i.dataset=c.dataset
+        FROM {CHANGES} c LEFT JOIN runs i ON i.id=c.run_id AND i.dataset=c.dataset
         LEFT JOIN runs p ON p.id=c.previous_run_id AND p.dataset=c.dataset
         WHERE {where}
         ORDER BY c.recorded_at DESC,c.run_id,c.dataset,c.period,c.group_id,c.field LIMIT ?
@@ -251,5 +272,6 @@ def read_snapshot(
             "end": end,
             "kind": kind,
             "group_id": group_id,
+            "area_key": area_key,
         },
     }

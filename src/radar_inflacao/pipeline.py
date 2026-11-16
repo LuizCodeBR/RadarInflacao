@@ -82,6 +82,7 @@ def archive(directory: Path, raw: bytes, suffix: str) -> tuple[str, str]:
 
 class Pipeline:
     grouped = False
+    dataset = "national"
     run_table = "ingestion"
     metadata_validator = staticmethod(validate_metadata)
     parser = staticmethod(parse_observations)
@@ -107,8 +108,11 @@ class Pipeline:
         if empty:
             self.demo()
 
+    def publish(self, db, rows, run_id):
+        return self.repository.upsert(db, rows, run_id)
+
     def _run(self, mode: str, *, full: bool = False) -> dict:
-        dataset = "groups" if self.grouped else "national"
+        dataset = self.dataset
         with self.repository.locked() as db:
             current = self.current_rows(db)
             if mode == "sample" and any(row["mode"] in ("live", "simulation") for row in current):
@@ -173,11 +177,7 @@ class Pipeline:
                 db.execute("BEGIN TRANSACTION")
                 transaction = True
                 change_count = audit.record_changes(db, dataset, current, rows, run_id, utc_now())
-                counts = (
-                    self.repository.upsert_groups(db, rows, run_id)
-                    if self.grouped
-                    else self.repository.upsert(db, rows, run_id)
-                )
+                counts = self.publish(db, rows, run_id)
                 db.execute(
                     f"""
                   UPDATE {self.run_table} SET finished_at=?,retrieved_at=?,source_url=?,
@@ -235,7 +235,12 @@ class GroupPipeline(Pipeline):
     from .source import GroupSource
 
     grouped = True
+    dataset = "groups"
     run_table = "group_ingestion"
     metadata_validator = staticmethod(validate_group_metadata)
     parser = staticmethod(parse_group_observations)
     source_type = GroupSource
+
+
+    def publish(self, db, rows, run_id):
+        return self.repository.upsert_groups(db, rows, run_id)
