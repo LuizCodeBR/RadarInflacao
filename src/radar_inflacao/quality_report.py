@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import csv
 import io
-import re
-from datetime import datetime
-from uuid import UUID
 
 from .analysis import validated_rate
 from .audit import DATASETS, FIELDS, MAX_CHANGES
+from .audit_contract import STAGES as STAGES
+from .audit_contract import run_id as _uuid
+from .audit_contract import timestamp as _time
+from .audit_contract import validate_filters, validate_reference, validate_run
 from .errors import ValidationError
 from .groups import GROUPS
 from .model import month
@@ -17,40 +18,6 @@ from .quality import CHECKS
 from .report import _number, _provenance, _text
 
 STATUSES = {"OK", "ERROR", "WARNING", "UNKNOWN", "EMPTY", "INFO"}
-STAGES = {
-    "STARTED": "Início",
-    "SAMPLE": "Leitura da amostra",
-    "METADATA": "Metadados",
-    "DOWNLOAD": "Download",
-    "CONTRACT": "Validação do contrato",
-    "ARCHIVE": "Arquivo bruto",
-    "PUBLISH": "Publicação",
-    "COMPLETE": "Concluída",
-}
-
-
-def _time(value):
-    if not isinstance(value, str) or not re.fullmatch(
-        r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}"
-        r"(?:\.[0-9]{1,9})?(?:Z|[+-][0-9]{2}:[0-9]{2})",
-        value,
-    ):
-        raise ValidationError("Data inválida no relatório de qualidade.")
-    try:
-        if datetime.fromisoformat(value).tzinfo is None:
-            raise ValueError
-    except ValueError as exc:
-        raise ValidationError("Data inválida no relatório de qualidade.") from exc
-    return value
-
-
-def _uuid(value):
-    try:
-        if not isinstance(value, str) or str(UUID(value)) != value:
-            raise ValueError
-    except (ValueError, AttributeError) as exc:
-        raise ValidationError("Identificação de coleta inválida no histórico.") from exc
-    return value
 
 
 def _csv(header, records):
@@ -72,8 +39,14 @@ def quality_csv_bytes(report):
             raise ValidationError("Quantidade de registros inválida.")
         attempt, success = item["latest_attempt"], item["latest_success"]
         reference = item["reference"]
-        if attempt and attempt["status"] not in ("SUCCESS", "FAILED", "INTERRUPTED"):
-            raise ValidationError("Situação de tentativa inválida.")
+        if attempt:
+            validate_run(attempt)
+        if success:
+            validate_run(success, success=True)
+        if reference:
+            validate_reference(reference)
+        if len(item["checks"]) != 4 or {c["code"] for c in item["checks"]} != set(CHECKS):
+            raise ValidationError("Relatório exige as quatro verificações distintas.")
         for check in item["checks"]:
             if check["code"] not in CHECKS or check["status"] not in STATUSES:
                 raise ValidationError("Verificação de qualidade inválida.")
@@ -129,8 +102,13 @@ def quality_csv_bytes(report):
 def changes_csv_bytes(snapshot):
     if snapshot["truncated"] or len(snapshot["changes"]) > MAX_CHANGES:
         raise ValidationError("Mais de 10000 mudanças; refine os filtros antes de exportar.")
+    total = snapshot["total_changes"]
+    if type(total) is not int or total < 0 or total != len(snapshot["changes"]):
+        raise ValidationError("Histórico incompleto: total e eventos disponíveis divergem.")
+    filters = snapshot["filters"]
+    validate_filters(**filters)
     generated = _time(snapshot["generated_at"])
-    records = []
+    records, seen = [], set()
     for row in snapshot["changes"]:
         code, group, field = row["dataset"], row["group_id"], row["field"]
         if (
@@ -145,14 +123,26 @@ def changes_csv_bytes(snapshot):
         period = month(row["period"])
         if period < "2020-01":
             raise ValidationError("Mês de mudança fora da cobertura.")
+        identity = (code, row["run_id"], period, group, field)
+        if identity in seen or row["period_day"] != 1:
+            raise ValidationError("Evento duplicado ou data inválida no histórico.")
+        seen.add(identity)
+        if (
+            (filters["dataset"] != "all" and code != filters["dataset"])
+            or (filters["kind"] != "all" and row["kind"] != filters["kind"])
+            or (filters["group_id"] is not None and group != filters["group_id"])
+            or (filters["start"] is not None and period < filters["start"])
+            or (filters["end"] is not None and period > filters["end"])
+        ):
+            raise ValidationError("Evento divergente dos filtros aplicados.")
         old, new = row["old_value"], row["new_value"]
         if row["kind"] == "ADDED":
             if old is not None or row["previous_run_id"] is not None:
                 raise ValidationError("Inclusão com valor ou coleta anterior indevidos.")
         else:
             _uuid(row["previous_run_id"])
-            if old == new:
-                raise ValidationError("Reconferência sem mudança não deve constar como alteração.")
+            if row["previous_run_status"] != "SUCCESS" or row["previous_run_id"] == row["run_id"]:
+                raise ValidationError("Vínculo da coleta anterior inválido no histórico.")
         numbers = []
         for index, value in enumerate((old, new)):
             allowed_blank = (index == 0 and row["kind"] == "ADDED") or (
@@ -167,6 +157,8 @@ def changes_csv_bytes(snapshot):
                 if field == "weight" and not 0 <= value <= 100:
                     raise ValidationError("Peso inválido no histórico.")
                 numbers.append(_number(value))
+        if row["kind"] == "CHANGED" and old == new:
+            raise ValidationError("Reconferência sem mudança não deve constar como alteração.")
         mode, retrieved, digest, run_id = _provenance(row)
         records.append(
             [

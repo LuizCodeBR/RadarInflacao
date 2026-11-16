@@ -37,16 +37,65 @@ class SimulationSource:
         return Download(json.dumps(payload, ensure_ascii=False).encode(), url)
 
 
-def prepare_demo(root: Path) -> Repository:
+def demo_directory(root: Path) -> Path:
+    root = root.resolve()
     directory = root / ".cache/quality-demo"
+    # O cenário não deve seguir atalhos/junções para outra pasta, mesmo vazia.
+    for path in (directory.parent, directory):
+        if path.is_symlink() or path.is_junction():
+            raise ValidationError("A pasta da demonstração não pode ser um link ou junção.")
+    return directory
+
+
+def _regular_demo_files(directory):
+    for name in ("simulation.json", "radar.duckdb", "radar.duckdb.wal", "radar.lock", "raw"):
+        path = directory / name
+        if path.is_symlink() or path.is_junction() or (path.is_file() and path.stat().st_nlink > 1):
+            raise ValidationError("A demonstração contém arquivo ou pasta redirecionado.")
+
+
+def _existing_demo(directory):
+    database = directory / "radar.duckdb"
+    if not database.is_file() or database.stat().st_size == 0:
+        raise ValidationError("Demonstração sem banco completo; preserve a pasta para conferência.")
+    repository = Repository(directory)
+    with repository.locked() as db:
+        for table in ("ingestion", "group_ingestion"):
+            total, simulated, unexpected = db.execute(
+                f"""SELECT count(*),
+                       count(*) FILTER(WHERE mode='simulation' AND status='SUCCESS'),
+                       count(*) FILTER(WHERE mode IS NULL OR mode NOT IN ('sample','simulation'))
+                    FROM {table}"""
+            ).fetchone()
+            if not total or not simulated or unexpected:
+                raise ValidationError("Conteúdo incompatível com a demonstração offline.")
+    return repository
+
+
+def prepare_demo(root: Path) -> Repository:
+    directory = demo_directory(root)
     directory.parent.mkdir(parents=True, exist_ok=True)
+    guard = directory.parent / "quality-demo.lock"
+    if guard.is_symlink() or guard.is_junction() or (guard.exists() and guard.stat().st_nlink > 1):
+        raise ValidationError("O bloqueio da demonstração não pode ser redirecionado.")
     try:
         with FileLock(directory.parent / "quality-demo.lock", timeout=0):
+            _regular_demo_files(directory)
             marker = directory / "simulation.json"
             if marker.exists():
-                state = json.loads(marker.read_text(encoding="utf-8"))
-                if state == {"simulation": "quality-v1", "complete": True}:
-                    return Repository(directory)
+                try:
+                    if marker.stat().st_size > 2048:
+                        raise ValueError
+                    state = json.loads(marker.read_text(encoding="utf-8"))
+                except (OSError, ValueError) as exc:
+                    raise ValidationError("Marcador da demonstração inválido.") from exc
+                if (
+                    isinstance(state, dict)
+                    and set(state) == {"simulation", "complete"}
+                    and state["simulation"] == "quality-v1"
+                    and state["complete"] is True
+                ):
+                    return _existing_demo(directory)
                 raise ValidationError("Demonstração incompleta; preserve a pasta para conferência.")
             if directory.exists() and any(directory.iterdir()):
                 raise ValidationError("A pasta de demonstração já contém dados não identificados.")

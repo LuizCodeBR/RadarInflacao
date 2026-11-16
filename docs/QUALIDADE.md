@@ -1,4 +1,4 @@
-# Central de qualidade e atualização — 0.4.0
+# Central de qualidade e atualização — 0.4.1
 
 ## Usar no painel
 
@@ -16,7 +16,7 @@ A central é um painel web local responsivo. As tabelas podem ser roladas horizo
 | --- | --- |
 | Cobertura | Todos os meses desde janeiro/2020 até o último local; nove grupos por mês e vínculos válidos |
 | Valores | Taxas decimais finitas; três medidas nacionais, quatro dos grupos; pesos e ausência histórica conforme contrato |
-| Procedência | Modo, data com fuso, SHA-256 e UUID da coleta |
+| Procedência | Modo, data com fuso, SHA-256, UUID e vínculos com publicações concluídas; vínculos do histórico |
 | Disponibilidade | Comparação com o último mês declarado nos metadados registrados, com identificação da data e modo |
 
 A ausência conhecida de 12 meses dos nove grupos de janeiro–novembro/2020 é informação aceita, nunca zero. Demais ausências são erro. A conferência de soma de pesos exige os nove grupos e tolerância de 0,05 p.p.
@@ -48,7 +48,7 @@ Ative Usar demonstração offline separada. A aplicação cria .cache/quality-de
 
 O histórico padrão mostra duas alterações, ambas Simulação offline. O resumo dos grupos mostra tentativa falha, mantendo publicação anterior válida. A central principal e o exemplo usam bancos separados. A atualização da base principal fica desabilitada enquanto a demonstração está ativa; desative para voltar.
 
-A preparação repetida reutiliza o cenário sem acrescentar novas tentativas. Pasta pré-existente sem marcador é recusada. Em caso de preparação interrompida, a pasta é preservada e a interface informa o problema; não apaga ou reinicia automaticamente conteúdo encontrado. A pasta não entra no ZIP. Primeiro uso do projeto prepara dependências com internet; o exemplo não precisa de rede depois disso.
+A preparação repetida reutiliza o cenário sem acrescentar novas tentativas. Pasta pré-existente sem marcador é recusada. Marcador sozinho não certifica uma demonstração pronta: é necessário banco existente com execuções simuladas concluídas. Links, junções e arquivos compartilhados por hard link nos caminhos verificados são recusados. Em caso de preparação interrompida, a pasta é preservada e a interface informa o problema; não apaga ou reinicia automaticamente conteúdo encontrado. A pasta não entra no ZIP. Primeiro uso do projeto prepara dependências com internet; o exemplo não precisa de rede depois disso.
 
 ## CSV e filtros
 
@@ -58,7 +58,7 @@ Relatório de qualidade: uma linha por verificação (oito nas duas bases), situ
 
 Relatório de mudanças: uma linha por evento, com filtros aplicados. A tabela exibe páginas de 50, mas o CSV contém todos os eventos filtrados até o limite de 10000, não apenas a página. Se exceder, a exportação é recusada e pede refinamento. O total encontrado é explícito. O histórico armazenado não é removido automaticamente.
 
-Textos/tipos/procedência são validados antes da exportação. Campos hostis são recusados; números negativos válidos permanecem numéricos. Arquivo preparado usa o mesmo snapshot das tabelas; clicar em baixar não consulta novamente o banco. Atualizar a página ou mudar filtro produz nova consulta.
+Textos/tipos/procedência são validados antes da exportação. O total precisa corresponder aos eventos disponíveis; identidades duplicadas e eventos fora dos filtros são recusados. O vínculo anterior de uma alteração precisa existir, ser de coleta concluída e diferente da coleta atual. Eventos com vínculo ausente não desaparecem da consulta: ficam detectáveis e bloqueiam a exportação correspondente. Campos hostis são recusados; números negativos válidos permanecem numéricos. Arquivo preparado usa o mesmo snapshot das tabelas; clicar em baixar não consulta novamente o banco. Atualizar a página ou mudar filtro produz nova consulta. Após digitar um mês, pressione Enter e aguarde a legenda Histórico aplicado refletir o período desejado antes de baixar. Uma edição ainda não aplicada não altera os bytes já preparados.
 
 Na CLI, o arquivo completo é publicado sem substituir destino existente. Requer disco local com suporte a hard links (validado no D:/NTFS); download no navegador não tem esse requisito. Confira limites de interrupção e sistema de arquivos na [revisão da exportação](REVISAO-0.2.1.md).
 
@@ -73,12 +73,12 @@ Na CLI, o arquivo completo é publicado sem substituir destino existente. Requer
 .\.venv\Scripts\python.exe -m radar_inflacao --data-dir .cache\quality-demo quality
 ~~~
 
-quality não importa amostras nem consulta a rede. Em base vazia informa Sem dados. O painel mantém a preparação inicial das amostras quando necessário. quality-demo usa somente a pasta fixa do projeto e recusa --data-dir. Respeita-se RADAR_DATA_DIR nos comandos de consulta/exportação normais; ele não redireciona a criação do exemplo.
+quality não importa amostras nem consulta a rede. Em base vazia informa Sem dados. O painel mantém a preparação inicial das amostras quando necessário. quality-demo usa somente a pasta fixa do projeto e recusa --data-dir. Respeita-se RADAR_DATA_DIR nos comandos de consulta/exportação normais; ele não redireciona a criação do exemplo. A pasta reservada da demonstração e suas subpastas são recusadas como base principal do painel e nos comandos demo/update. Consulta/exportação explícita dessa pasta continua permitida.
 
 ## Armazenamento e compatibilidade
 
-Arquivos desta instalação em D:/Projetos/RadarInflacao. Esquema 3: migração transacional de 2→3 e encadeada de 1→2→3. Não há dependência nova, conta, recurso pago, serviço de banco ou tarefa agendada. Iniciadores Windows/Linux permanecem; Windows validado, execução nativa Linux/macOS e celular físico não foram feitos nesta etapa.
+Arquivos desta instalação em D:/Projetos/RadarInflacao. A revisão 0.4.1 conserva o esquema 3, sem nova migração. Esquema 3: migração transacional de 2→3 e encadeada de 1→2→3. Não há dependência nova, conta, recurso pago, serviço de banco ou tarefa agendada. Iniciadores Windows/Linux permanecem; Windows validado, execução nativa Linux/macOS e celular físico não foram feitos nesta etapa.
 
 Antes de atualizar outra instalação, encerre o aplicativo e preserve data/. O código antigo recusa esquema 3. Não use a base em pasta de rede/sincronizada com múltiplos escritores. Bloqueios e transações só coordenam programas que respeitam o protocolo do projeto.
 
-[Validação 0.4.0](VALIDACAO-0.4.0.md) · [Arquitetura](ARQUITETURA.md).
+[Revisão 0.4.1](REVISAO-0.4.1.md) · [Validação inicial](VALIDACAO-0.4.0.md) · [Arquitetura](ARQUITETURA.md).

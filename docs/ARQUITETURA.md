@@ -1,4 +1,4 @@
-# Arquitetura — Radar da Inflação 0.4.0
+# Arquitetura — Radar da Inflação 0.4.1
 
 ## Escopo e escolhas
 
@@ -134,3 +134,14 @@ Datas TIMESTAMPTZ são convertidas para strings UTC no SQL, evitando acrescentar
 A demonstração usa fontes locais, modo simulation e marcador em .cache/quality-demo. Importa amostras, altera o último valor mensal do índice geral e de Alimentação e bebidas para 9,99, reconfere sem mudanças e recusa um lote de grupos com mês faltante. Os dados e CSVs são explicitamente simulados. Pasta existente sem marcador é recusada. A preparação repetida reutiliza o cenário; não o executa novamente. Durante o exemplo, a atualização da base principal fica desabilitada na interface.
 
 Limites do bloqueio local e da publicação de CSV permanecem. O histórico não é assinado ou protegido contra um usuário que pode editar todos os arquivos. Para recuperar uma instalação inteira, preserve a pasta data com o aplicativo encerrado. [Guia](QUALIDADE.md) e [validação](VALIDACAO-0.4.0.md).
+
+
+## Revisão da central na versão 0.4.1
+
+O esquema permanece 3. audit_contract.py reúne validações de filtros, tentativa, identificadores, datas e referência de disponibilidade para manter leitura e exportação coerentes. A consulta do histórico usa LEFT JOIN: registros sem coleta válida são preservados no retrato para detecção, em vez de sumirem de um CSV aparentemente completo. A verificação de procedência considera também publicações sem sucesso, datas que não representam o primeiro dia do mês e vínculos anteriores inválidos. A ausência de audit_baseline é erro explicado, sem reconstrução ou alteração dos valores.
+
+O exportador compara total com quantidade disponível, valida unicidade e correspondência aos filtros e recusa coleta anterior ausente, malsucedida ou igual à atual. Decimais não finitos são recusados antes de comparações. Nenhuma dessas verificações autentica um disco adulterado; os hashes continuam identificadores de origem, não assinaturas digitais.
+
+A demonstração confere marcador limitado, banco existente, execuções simuladas e caminhos sem redirecionamentos nos pontos verificados. O painel e comandos de mutação recusam a pasta reservada como base principal; comandos de leitura/exportação continuam disponíveis. O bloqueio de preparação coordena as instâncias da aplicação. As verificações de caminhos reduzem redirecionamentos acidentais e não constituem uma barreira contra um processo externo que possa trocar arquivos durante a operação.
+
+[Resultados, reproduções, testes e limites](REVISAO-0.4.1.md).

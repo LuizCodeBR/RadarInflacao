@@ -30,7 +30,7 @@ Capturas reais locais com a amostra da tabela 7060, janeiro–março/2024 e refe
 As capturas dos grupos foram refeitas na revisão 0.3.1, após os ensaios concorrentes. As imagens exibem os valores reais da amostra, sem as alterações sintéticas temporárias da base de ensaio.
 
 
-## Central de qualidade — 0.4.0
+## Central de qualidade — 0.4.1
 
 Capturas reais em servidor local. A demonstração está ativada e explicitamente identificada; dados sintéticos são usados somente no exemplo separado. Desktop de 1440 pixels e mobile emulado de 412 pixels. A captura de mudanças mostra os eventos de antes/depois e a tentativa de grupos recusada.
 
@@ -39,3 +39,5 @@ Capturas reais em servidor local. A demonstração está ativada e explicitament
 ![Histórico das mudanças](qualidade-mudancas.png)
 
 <img src="qualidade-mobile.png" alt="Central de qualidade no navegador de celular emulado" width="360">
+
+As capturas da central foram atualizadas na revisão 0.4.1, incluindo a legenda dos filtros efetivamente aplicados. Os cenários continuam explicitamente simulados.

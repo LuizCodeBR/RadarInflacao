@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from .analysis import validated_rate
 from .audit import DATASETS
+from .audit_contract import validate_reference, validate_run
 from .errors import RadarError
 from .groups import GROUPS, filter_group_rows, validate_group_rows
 from .model import BASE_MONTH, month, periods
@@ -45,18 +46,26 @@ def _values(rows, grouped):
     return "OK", "Três medidas obrigatórias e taxas decimais válidas."
 
 
-def _origin(rows):
+def _origin(item):
+    rows = item["rows"]
+    if item["invalid_publications"] or item["invalid_history"]:
+        return "ERROR", (
+            f"{item['invalid_publications']} observações e {item['invalid_history']} eventos "
+            "com publicação, data ou vínculo de coleta inválido. Preserve a base."
+        )
+    for run in item["history"]:
+        validate_run(run)
     if not rows:
         return "EMPTY", "Sem procedência para verificar."
     for row in rows:
         _provenance(row)
-    return "OK", "Modo, data com fuso, hash e identificação da coleta válidos."
+    return "OK", "Modo, data com fuso, hash e vínculos das publicações e do histórico válidos."
 
 
 def _availability(rows, reference):
     if not reference:
         return "UNKNOWN", "Disponibilidade não registrada; faça uma atualização sob demanda."
-    end = month(reference["declared_end"])
+    end = validate_reference(reference)
     observed = reference["metadata_observed_at"]
     local_end = max((r["period"] for r in rows), default=None)
     if reference["mode"] == "simulation":
@@ -81,7 +90,7 @@ def build_quality(snapshot):
         for code, check in [
             ("coverage", lambda rows=rows, grouped=grouped: _coverage(rows, grouped)),
             ("values", lambda rows=rows, grouped=grouped: _values(rows, grouped)),
-            ("provenance", lambda rows=rows: _origin(rows)),
+            ("provenance", lambda item=item: _origin(item)),
             ("availability", lambda rows=rows, item=item: _availability(rows, item["reference"])),
         ]:
             try:
@@ -111,7 +120,7 @@ def build_quality(snapshot):
                 "count": len(rows),
                 "start": months[0] if months else None,
                 "end": months[-1] if months else None,
-                "modes": sorted({r["mode"] for r in rows}),
+                "modes": sorted({r["mode"] for r in rows}, key=str),
             }
         )
     return {**snapshot, "datasets": result}

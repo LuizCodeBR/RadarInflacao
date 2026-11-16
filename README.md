@@ -2,7 +2,7 @@
 
 Pipeline de dados públicos do **IPCA nacional**, com Python, SQL/DuckDB e painel Streamlit. Coleta dados do IBGE, valida o contrato da fonte, preserva a última base válida e registra origem, hash e resultado de cada execução.
 
-**Versão 0.4.0 · execução local · sem conta, chave de API ou recurso pago.**
+**Versão 0.4.1 · execução local · sem conta, chave de API ou recurso pago.**
 
 ![Painel do Radar da Inflação](docs/imagens/painel-desktop.png)
 
@@ -122,7 +122,7 @@ Atualizar pelo IBGE e atualizar.cmd atendem ao índice geral e aos grupos. Cada 
 
 ![Grupos do IPCA](docs/imagens/grupos-desktop.png)
 
-## Qualidade, atualização e histórico — 0.4.0
+## Qualidade, atualização e histórico — 0.4.1
 
 Em Análise, escolha **Qualidade e atualização**. A central mostra cobertura, taxas/pesos/ausências, procedência, última tentativa e última publicação concluída, separadamente para o índice geral e os nove grupos. As verificações usam o banco local; não consultam a internet ao abrir filtros.
 
@@ -143,11 +143,13 @@ Os filtros por conjunto, evento, mês e grupo afetam o histórico. Há CSV da qu
 .\.venv\Scripts\python.exe -m radar_inflacao quality-export --report changes --kind CHANGED --output exports\mudancas.csv
 ~~~
 
-Python e dependências permanecem. O banco migra para esquema 3 na primeira abertura. Antes de atualizar uma instalação própria, encerre o aplicativo e preserve a pasta data; o código antigo não abre o esquema novo.
+Python e dependências permanecem. A revisão 0.4.1 mantém o esquema 3 introduzido na 0.4.0. Instalações até 0.3.1 migram na primeira abertura; antes de atualizá-las, encerre o aplicativo e preserve a pasta data. Versões até 0.3.1 não abrem o esquema 3.
 
-**268 testes aprovados no Windows / Python 3.13 e 3.12**, incluindo migração, falhas, CSV e concorrência.
+**316 testes aprovados no Windows / Python 3.13 e 3.12**, incluindo migração, falhas, CSV e concorrência.
 
-[Guia da central e dos relatórios](docs/QUALIDADE.md) · [Validação 0.4.0](docs/VALIDACAO-0.4.0.md).
+Na revisão 0.4.1, vínculos inválidos deixam de desaparecer do histórico; publicação, procedência e disponibilidade são revalidadas. CSV incompleto, duplicado ou divergente dos filtros é recusado. A demonstração tem verificações de pasta/banco e não pode receber atualizações pela CLI nem ser usada como base principal do painel. Não há nova migração ou dependência.
+
+[Guia da central e dos relatórios](docs/QUALIDADE.md) · [Revisão 0.4.1](docs/REVISAO-0.4.1.md) · [Validação inicial](docs/VALIDACAO-0.4.0.md).
 
 ## Comparar períodos e entender os indicadores
 
@@ -197,7 +199,7 @@ flowchart LR
     DB --> CSV[CSV / procedência]
 ~~~
 
-[Arquitetura e decisões](docs/ARQUITETURA.md) · [Testes atuais](docs/VALIDACAO-0.4.0.md) · [Instalação e uso](docs/INSTALACAO.md) · [Dados e limites](docs/DADOS.md).
+[Arquitetura e decisões](docs/ARQUITETURA.md) · [Testes atuais](docs/REVISAO-0.4.1.md) · [Instalação e uso](docs/INSTALACAO.md) · [Dados e limites](docs/DADOS.md).
 
 ## Pastas e armazenamento
 

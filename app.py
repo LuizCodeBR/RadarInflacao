@@ -36,9 +36,9 @@ view = st.radio(
     horizontal=True,
     key="view",
 )
-repository, pipeline = components()
-group_pipeline = GroupPipeline(repository, project_root() / "sample/groups")
 try:
+    repository, pipeline = components()
+    group_pipeline = GroupPipeline(repository, project_root() / "sample/groups")
     pipeline.ensure_demo()
     group_pipeline.ensure_demo()
     snapshot = repository.snapshot(include_groups=True)

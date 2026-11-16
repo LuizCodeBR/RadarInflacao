@@ -22,6 +22,7 @@ LABELS = {
 }
 RUN_LABELS = {"SUCCESS": "Concluída", "FAILED": "Falhou", "INTERRUPTED": "Interrompida"}
 MODES = {"sample": "Amostra incluída", "live": "Consulta IBGE", "simulation": "Simulação offline"}
+EVENTS = {"CHANGED": "Alterações", "ADDED": "Inclusões", "all": "Inclusões e alterações"}
 
 
 def _when(run, field):
@@ -74,11 +75,7 @@ def render_quality(repository, root):
     kind = right.selectbox(
         "Eventos do histórico",
         ["CHANGED", "ADDED", "all"],
-        format_func={
-            "CHANGED": "Alterações",
-            "ADDED": "Inclusões",
-            "all": "Inclusões e alterações",
-        }.get,
+        format_func=EVENTS.get,
         key=f"q_kind_{key}",
     )
     left, right = st.columns(2)
@@ -112,6 +109,12 @@ def render_quality(repository, root):
         st.error(str(error))
         return
     st.caption(f"Retrato consultado em {report['generated_at']} · horários com fuso UTC.")
+    st.caption(
+        f"Histórico aplicado: {DATASETS.get(dataset, 'Todos')} · {EVENTS[kind]} · "
+        f"{start or 'início da base'} a {end or 'fim da base'} · "
+        f"{GROUPS.get(group, 'Todos os grupos')}. "
+        "Após editar um mês, pressione Enter e aguarde a atualização antes de baixar."
+    )
     st.subheader("Situação das bases")
     for item in report["datasets"]:
         st.markdown(f"**{item['label']} · {LABELS[item['grade']]}**")

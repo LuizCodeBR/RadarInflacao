@@ -7,7 +7,7 @@ import json
 import os
 from pathlib import Path
 
-from .errors import RadarError
+from .errors import RadarError, ValidationError
 from .groups import GROUPS, filter_group_rows
 from .model import month
 from .pipeline import GroupPipeline, Pipeline
@@ -19,9 +19,18 @@ def project_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
 
-def components(directory: Path | None = None) -> tuple[Repository, Pipeline]:
+def components(
+    directory: Path | None = None, *, allow_simulation: bool = False
+) -> tuple[Repository, Pipeline]:
     root = project_root()
     chosen = directory or Path(os.environ.get("RADAR_DATA_DIR", str(root / "data")))
+    reserved = (root / ".cache/quality-demo").resolve()
+    resolved = chosen.resolve()
+    if not allow_simulation and (resolved == reserved or resolved.is_relative_to(reserved)):
+        raise ValidationError(
+            "A demonstração não pode ser a base principal nem receber atualizações. "
+            "Use a central para abrir o exemplo ou outra pasta para seus dados."
+        )
     repository = Repository(chosen)
     return repository, Pipeline(repository, root / "sample")
 
@@ -77,7 +86,10 @@ def main(argv=None) -> int:
             demo_repository = prepare_demo(project_root())
             print(json.dumps({"simulation": True, "directory": str(demo_repository.directory)}))
             return 0
-        repository, pipeline = components(args.data_dir)
+        repository, pipeline = components(
+            args.data_dir,
+            allow_simulation=args.command in ("quality", "quality-export", "status", "export"),
+        )
         if args.command in ("quality", "quality-export"):
             from .quality import build_quality
             from .quality_report import changes_csv_bytes, quality_csv_bytes

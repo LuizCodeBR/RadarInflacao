@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from dataclasses import asdict
 
+from .audit_contract import validate_filters
 from .errors import ValidationError
-from .groups import GROUPS
-from .model import as_date, month
+from .model import as_date
 
 DATASETS = {"national": "Índice geral", "groups": "Nove grupos"}
 FIELDS = {
@@ -147,16 +147,7 @@ def _runs(db, dataset, condition="TRUE", limit=20):
 def read_snapshot(
     repository, db, dataset="all", start=None, end=None, kind="CHANGED", group_id=None
 ):
-    if dataset not in (*DATASETS, "all") or kind not in ("all", "ADDED", "CHANGED"):
-        raise ValidationError("Filtro de histórico inválido.")
-    if group_id is not None and (dataset != "groups" or group_id not in GROUPS):
-        raise ValidationError("O filtro de grupo exige o conjunto Nove grupos e um ID válido.")
-    if start is not None:
-        month(start)
-    if end is not None:
-        month(end)
-    if start and end and start > end:
-        raise ValidationError("O mês inicial precisa ser anterior ou igual ao final.")
+    validate_filters(dataset, start, end, kind, group_id)
     datasets = []
     for code in DATASETS:
         rows = repository.rows(db) if code == "national" else repository.group_rows(db)
@@ -169,6 +160,29 @@ def read_snapshot(
                 [code],
             )
         )
+        if len(baseline) != 1:
+            raise ValidationError("Início do histórico ausente; preserve a base para conferência.")
+        run_table = "ingestion" if code == "national" else "group_ingestion"
+        invalid_publications = db.execute(
+            f"""SELECT count(*) FROM {table} o LEFT JOIN {run_table} i ON i.id=o.run_id
+                WHERE i.status IS DISTINCT FROM 'SUCCESS' OR i.finished_at IS NULL
+                   OR day(o.period)<>1"""
+        ).fetchone()[0]
+        invalid_history = db.execute(
+            f"""SELECT count(*) FROM data_change c
+                LEFT JOIN {run_table} i ON i.id=c.run_id
+                LEFT JOIN {run_table} p ON p.id=c.previous_run_id
+                WHERE c.dataset=? AND (
+                    i.status IS DISTINCT FROM 'SUCCESS' OR i.finished_at IS NULL
+                    OR day(c.period)<>1
+                    OR (c.kind='CHANGED' AND (
+                        p.status IS DISTINCT FROM 'SUCCESS' OR p.finished_at IS NULL
+                        OR c.run_id=c.previous_run_id
+                        OR c.old_value IS NOT DISTINCT FROM c.new_value))
+                    OR (c.kind='ADDED' AND (
+                        c.previous_run_id IS NOT NULL OR c.old_value IS NOT NULL)))""",
+            [code],
+        ).fetchone()[0]
         history = _runs(db, code)
         success = _runs(db, code, "i.status='SUCCESS'", 1)
         online = _runs(db, code, "i.mode='live' AND a.declared_end IS NOT NULL", 1)
@@ -183,6 +197,8 @@ def read_snapshot(
                 "latest_success": success[0] if success else None,
                 "reference": reference[0] if reference else None,
                 "history": history,
+                "invalid_publications": invalid_publications,
+                "invalid_history": invalid_history,
             }
         )
     where = """(?='all' OR c.dataset=?) AND (?='all' OR c.kind=?)
@@ -211,8 +227,10 @@ def read_snapshot(
         SELECT c.dataset,c.run_id,strftime(c.period,'%Y-%m') AS period,c.group_id,
                c.field,c.kind,c.old_value,c.new_value,c.previous_run_id,
                strftime(c.recorded_at,'%Y-%m-%dT%H:%M:%S.%f+00:00') AS recorded_at,
-               i.mode,i.retrieved_at,i.raw_sha256,i.status AS run_status
-        FROM data_change c JOIN runs i ON i.id=c.run_id AND i.dataset=c.dataset
+               i.mode,i.retrieved_at,i.raw_sha256,i.status AS run_status,
+               p.status AS previous_run_status,day(c.period) AS period_day
+        FROM data_change c LEFT JOIN runs i ON i.id=c.run_id AND i.dataset=c.dataset
+        LEFT JOIN runs p ON p.id=c.previous_run_id AND p.dataset=c.dataset
         WHERE {where}
         ORDER BY c.recorded_at DESC,c.run_id,c.dataset,c.period,c.group_id,c.field LIMIT ?
     """,
