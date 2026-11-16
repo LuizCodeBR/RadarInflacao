@@ -1,8 +1,8 @@
-# Arquitetura — Radar da Inflação 0.1.0
+# Arquitetura — Radar da Inflação 0.2.0
 
 ## Escopo e escolhas
 
-Uma aplicação Python com módulos por responsabilidade. Interface, CLI e testes chamam o mesmo pipeline. O produto inicial cobre três medidas oficiais do IPCA nacional desde 2020, uma fonte e atualização manual.
+Uma aplicação Python com módulos por responsabilidade. Interface, CLI e testes chamam o mesmo pipeline. O produto cobre três medidas oficiais do IPCA nacional desde 2020, comparações locais, uma fonte e atualização manual.
 
 | Módulo | Responsabilidade |
 | --- | --- |
@@ -10,7 +10,8 @@ Uma aplicação Python com módulos por responsabilidade. Interface, CLI e teste
 | source.py | Origem HTTPS fixa, timeouts, limite de tamanho e retentativas limitadas |
 | pipeline.py | Amostra/coleta, validação integral, arquivo bruto e publicação transacional |
 | storage.py | DuckDB, esquema 1, lock entre processos e consultas parametrizadas |
-| report.py | CSV com valores e procedência por mês |
+| analysis.py | Resumo de intervalos, composição decimal, comparação e apresentação de taxas |
+| report.py | CSV mensal com procedência e CSV de comparação com método e janelas |
 | cli.py | Comandos e identificação da pasta independente |
 | app.py | Leitura, filtros, indicadores, gráfico, download e botão de atualização |
 
@@ -56,3 +57,15 @@ Datas de execução no banco são UTC. Momento original da amostra permanece no 
 Python 3.12/3.13, dependências fixadas por uv.lock e requirements exportados. Iniciadores usam venv e pip, ou uv existente. Cache e temporários ficam na pasta do projeto; o pacote fonte não inclui banco, ambiente ou caches.
 
 O painel escuta em 127.0.0.1. Nenhum login, cobrança, hospedagem, API com token ou agendamento é necessário. Streamlit organiza a interface; DuckDB evita um servidor de banco separado. O custo é não oferecer, nesta arquitetura, operação pública concorrente de múltiplos usuários.
+
+## Análise e comparações na versão 0.2.0
+
+analysis.py recebe o mesmo snapshot já carregado pela tela. Suas funções são independentes de Streamlit, banco e rede, não alteram as linhas de entrada e não persistem resultados derivados. Uma coleta concorrente posterior não mistura versões dentro da comparação já calculada.
+
+PeriodSummary contém as datas, quantidade de meses, composição das taxas mensais e as três medidas oficiais do último mês. PeriodComparison combina dois resumos, calcula A − B em pontos percentuais e identifica sobreposição e durações diferentes.
+
+Cada intervalo precisa ter todos os meses, sem duplicações. O modo automático gera a janela exata e não a trunca para caber na base. Intervalos insuficientes produzem uma mensagem; gráfico e CSV mensal de A continuam disponíveis.
+
+Os cálculos usam Decimal com contexto local de precisão proporcional ao intervalo, sem herdar uma precisão insuficiente do chamador. As diferenças usam os valores anteriores ao arredondamento. A tela aplica ROUND_HALF_UP em duas casas e evita exibir zero negativo; a exportação preserva a precisão calculada. Não há anualização nem divisão por uma taxa possivelmente zero.
+
+A composição é identificada como estimativa, porque as taxas mensais publicadas já têm arredondamento. Os acumulados oficiais da fonte são preservados e nunca substituídos por essa composição. Não houve alteração no esquema 1, nos dados da amostra ou nas dependências.

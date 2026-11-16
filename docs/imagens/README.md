@@ -1,9 +1,15 @@
-# Capturas da primeira versão
+# Capturas da versão 0.2.0
 
-Painel real local da versão 0.1.0. A captura desktop usa janeiro a março/2024 e mostra a amostra; a mobile usa o período padrão depois de uma atualização parcial e identifica a base mista. Não há dados pessoais.
+Painel real local com a amostra oficial incluída, sem dados pessoais.
 
-Desktop: viewport 1440 de largura. Mobile: 412 de largura em navegador emulado, sem teste em aparelho físico. Imagens conferidas visualmente; números vêm da API real e da amostra oficial.
+- Desktop: janeiro–março/2024 comparado a janeiro–março/2023; largura de 1440 pixels.
+- Comparação: detalhe das janelas, estimativas, diferença em pontos percentuais e tabela.
+- Mobile: período padrão, navegador emulado com largura de 412 pixels. Não houve teste em aparelho físico.
+
+As imagens foram obtidas no navegador e conferidas visualmente. A estimativa do período é identificada separadamente dos valores oficiais.
 
 ![Painel desktop](painel-desktop.png)
 
-<img src="painel-mobile.png" alt="Painel responsivo com os indicadores de inflação" width="360">
+![Comparação de períodos](comparacao-periodos.png)
+
+<img src="painel-mobile.png" alt="Painel responsivo com comparação de inflação" width="360">

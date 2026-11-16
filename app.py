@@ -5,10 +5,19 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
+from radar_inflacao import __version__
+from radar_inflacao.analysis import (
+    ESTIMATED_LABEL,
+    INDICATORS,
+    compare_periods,
+    format_points,
+    format_rate,
+    reference_period,
+)
 from radar_inflacao.cli import components
 from radar_inflacao.errors import RadarError
-from radar_inflacao.model import BASE_MONTH
-from radar_inflacao.report import csv_bytes
+from radar_inflacao.model import BASE_MONTH, next_month
+from radar_inflacao.report import comparison_csv_bytes, csv_bytes
 
 st.set_page_config(page_title="Radar da Inflação", page_icon="📊", layout="wide")
 st.title("Radar da Inflação")
@@ -88,17 +97,123 @@ st.caption(f"Período aplicado: {start} a {end} · {len(filtered)} meses.")
 last = filtered[-1]
 st.subheader(f"Indicadores de {last['period']}")
 metrics = st.columns(3)
-for column, label, key in zip(
-    metrics,
-    ["Variação mensal", "Acumulado no ano", "Acumulado em 12 meses"],
-    ["monthly", "year_to_date", "twelve_month"],
-    strict=True,
-):
-    column.metric(label, f"{last[key]:.2f}%".replace(".", ","))
+for column, (label, key, explanation) in zip(metrics, INDICATORS, strict=True):
+    column.metric(label, format_rate(last[key]), help=explanation)
 st.caption(
     "Os três valores acima são os divulgados pelo IBGE para o último mês selecionado. "
-    "Acumulado no ano começa em janeiro; acumulado em 12 meses não é a soma das taxas mensais."
+    "O filtro não redefine as janelas dos acumulados oficiais."
 )
+
+with st.expander("Entenda os indicadores e os cálculos"):
+    st.markdown(
+        f"**Variação mensal:** compara o nível de preços de {end} com o mês anterior. "
+        "Uma taxa negativa indica deflação naquele mês.\n\n"
+        f"**Acumulado no ano:** começa em {end[:4]}-01 e termina em {end}, "
+        "mesmo que o filtro comece depois de janeiro.\n\n"
+        f"**Acumulado em 12 meses:** cobre {next_month(end, -11)} a {end}, "
+        "incluindo meses anteriores ao filtro ou à cobertura local, quando necessário. "
+        "O valor é fornecido pelo IBGE.\n\n"
+        f"**{ESTIMATED_LABEL}:** combina apenas as taxas mensais do intervalo escolhido, "
+        "incluindo o primeiro e o último mês. A fórmula é "
+        "`[(1 + taxa₁/100) × … × (1 + taxaₙ/100) − 1] × 100`. "
+        "Por exemplo, dois meses de 1% resultam em 2,01%, e não 2%. "
+        "É uma estimativa a partir das taxas publicadas, que já têm arredondamento; "
+        "pode diferir do acumulado oficial calculado com números-índice.\n\n"
+        "**Pontos percentuais (p.p.):** diferença entre duas taxas. "
+        "Se A for 3% e B for 2%, A − B é +1,00 p.p.\n\n"
+        "Uma inflação positiva menor indica preços subindo mais devagar; "
+        "não significa, por si só, queda do nível de preços."
+    )
+    st.markdown(
+        "[Inflação e metodologia do IPCA — IBGE](https://www.ibge.gov.br/explica/inflacao.php) · "
+        "[Composição dos índices — Banco Central]"
+        "(https://www4.bcb.gov.br/pec/correcao/metodologiaInd.asp?frame=1)"
+    )
+
+st.subheader("Comparar períodos")
+st.caption(f"Período A: {start} a {end} · {len(filtered)} meses · definido pelos filtros acima.")
+comparison_labels = {
+    "previous": "Período anterior de mesma duração",
+    "year": "Mesmo período do ano anterior",
+    "custom": "Escolher outro período",
+}
+mode = st.selectbox(
+    "Comparar com", list(comparison_labels), format_func=comparison_labels.get,
+    key="comparison_mode",
+)
+if mode == "custom":
+    default_start, default_end = reference_period(start, end, "previous")
+    if default_start not in available or default_end not in available:
+        default_start, default_end = start, end
+    left_b, right_b = st.columns(2)
+    with left_b:
+        start_b = st.selectbox(
+            "Mês inicial do período B", available, index=available.index(default_start),
+            key="compare_start",
+        )
+    with right_b:
+        end_b = st.selectbox(
+            "Mês final do período B", available, index=available.index(default_end),
+            key="compare_end",
+        )
+else:
+    start_b, end_b = reference_period(start, end, mode)
+try:
+    comparison = compare_periods(rows, start, end, start_b, end_b)
+except RadarError as error:
+    if mode == "custom":
+        st.error(f"Comparação indisponível: {error}")
+    else:
+        st.info(
+            f"Comparação indisponível: {error} "
+            "Escolha outro período ou ajuste os filtros. Os dados do período A continuam abaixo."
+        )
+else:
+    st.caption(
+        f"Comparação aplicada: A {start} a {end} · B {start_b} a {end_b} · "
+        f"{comparison.a.count} e {comparison.b.count} meses."
+    )
+    if not comparison.same_length:
+        st.warning(
+            "Os períodos têm durações diferentes. O acumulado não foi anualizado; "
+            "considere a quantidade de meses ao interpretar a diferença."
+        )
+    if comparison.overlap:
+        st.info("Os períodos se sobrepõem: alguns meses participam dos dois intervalos.")
+    if start == start_b and end == end_b:
+        st.info("Os períodos são idênticos; as diferenças são zero.")
+    metric_a, metric_b, metric_difference = st.columns(3)
+    metric_a.metric("Estimativa do período A", format_rate(comparison.a.compounded))
+    metric_b.metric("Estimativa do período B", format_rate(comparison.b.compounded))
+    metric_difference.metric(
+        "Diferença A − B", format_points(comparison.measures[0].difference),
+        help="Diferença em pontos percentuais, calculada antes do arredondamento.",
+    )
+    st.caption(
+        "Acumulado estimado pela composição das taxas mensais publicadas. "
+        "Não é um novo acumulado oficial do IBGE."
+    )
+    comparison_table = [
+        {
+            "Indicador": measure.label,
+            "Período A (%)": format_rate(measure.a),
+            "Período B (%)": format_rate(measure.b),
+            "Diferença A − B (p.p.)": format_points(measure.difference),
+        }
+        for measure in comparison.measures
+    ]
+    st.dataframe(comparison_table, hide_index=True, width="stretch", key="comparison_table")
+    st.caption(
+        "As três linhas oficiais usam o último mês de cada período; suas janelas continuam "
+        "sendo mês, ano civil e 12 meses. Diferenças são A − B, antes do arredondamento; "
+        "a tela mostra duas casas. Consulte a tabela no computador ou role-a no celular."
+    )
+    st.download_button(
+        "Baixar CSV da comparação", comparison_csv_bytes(comparison),
+        file_name=f"comparacao-{start}-{end}-vs-{start_b}-{end_b}.csv",
+        mime="text/csv", key="comparison_csv",
+    )
+
 chart = pd.DataFrame(
     [
         {
@@ -109,7 +224,7 @@ chart = pd.DataFrame(
         for row in filtered
     ]
 ).set_index("Mês")
-st.subheader("Evolução no período")
+st.subheader("Evolução no período A")
 st.line_chart(chart, x_label="Mês", y_label="Variação (%)")
 st.caption("Taxa mensal e acumulado em 12 meses têm janelas diferentes de medição.")
 st.download_button(
@@ -134,7 +249,7 @@ with st.expander("Tabela, origem e qualidade", expanded=True):
         }
         for row in filtered
     ]
-    st.dataframe(table, hide_index=True, width="stretch")
+    st.dataframe(table, hide_index=True, width="stretch", key="source_table")
     st.caption(
         "Meses únicos, intervalo contínuo, Brasil, unidade % e três medidas obrigatórias. "
         "Valor ausente nunca é convertido automaticamente em zero."
@@ -155,9 +270,9 @@ with st.expander("Histórico das últimas 20 execuções"):
         }
         for row in snapshot["history"]
     ]
-    st.dataframe(history, hide_index=True, width="stretch")
+    st.dataframe(history, hide_index=True, width="stretch", key="history_table")
 st.divider()
 st.caption(
-    f"Radar da Inflação 0.1.0 · Série desde {BASE_MONTH}. "
+    f"Radar da Inflação {__version__} · Série desde {BASE_MONTH}. "
     "Indicador estatístico nacional; não representa a inflação individual de cada pessoa."
 )

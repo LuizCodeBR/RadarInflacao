@@ -2,7 +2,7 @@
 
 Pipeline de dados públicos do **IPCA nacional**, com Python, SQL/DuckDB e painel Streamlit. Coleta dados do IBGE, valida o contrato da fonte, preserva a última base válida e registra origem, hash e resultado de cada execução.
 
-**Versão inicial 0.1.0 · execução local · sem conta, chave de API ou recurso pago.**
+**Versão 0.2.0 · execução local · sem conta, chave de API ou recurso pago.**
 
 ![Painel do Radar da Inflação](docs/imagens/painel-desktop.png)
 
@@ -46,6 +46,9 @@ O iniciador prepara o ambiente e abre o mesmo painel local. A validação realiz
 
 - Amostra real do IBGE: janeiro/2020 a outubro/2026, 82 meses e três medidas por mês.
 - Filtros de início/fim, indicadores oficiais, gráfico e tabela com procedência.
+- Comparação com período anterior de mesma duração, mesmo período do ano anterior ou intervalo manual.
+- Acumulado estimado por composição, diferenças em pontos percentuais e CSV da comparação.
+- Explicações contextualizadas e avisos de cobertura, durações diferentes e sobreposição.
 - CSV UTF-8 com BOM, ponto e vírgula e vírgula decimal.
 - Atualização sob demanda pela API do IBGE.
 - Reconsulta dos últimos 24 meses existentes e busca de meses novos, sem duplicação.
@@ -101,6 +104,23 @@ Os acumulados são os divulgados pelo IBGE; não são calculados somando taxas m
 
 A [amostra](sample/manifest.json) registra URL, momento da obtenção e hashes dos dados/metadados. Os números do período continuam sendo os publicados pela fonte; não se trata de uma previsão ou medição de preços de produtos.
 
+## Comparar períodos e entender os indicadores
+
+1. Escolha os meses inicial e final: eles definem o período A.
+2. Em Comparar com, use o período anterior de mesma duração, o mesmo intervalo um ano antes ou Escolher outro período.
+3. Consulte o acumulado estimado A/B, a diferença em pontos percentuais e a tabela com as medidas oficiais do último mês de cada intervalo.
+4. Abra Entenda os indicadores e os cálculos ou baixe o CSV da comparação.
+
+Exemplo com a amostra: A = janeiro a março/2024, B = janeiro a março/2023. O acumulado estimado de A é 1,4154915776%, exibido como 1,42%. O acumulado oficial no ano de março/2024 continua sendo o 1,42% publicado pelo IBGE.
+
+A estimativa multiplica fatores mensais, sem somar taxas. Como usa taxas já arredondadas, pode diferir do acumulado oficial obtido com números-índice. Os três indicadores oficiais continuam usando suas próprias janelas, mesmo quando o filtro começa em outro mês.
+
+As diferenças são A − B em pontos percentuais, calculadas antes do arredondamento. Períodos de durações diferentes não são anualizados e recebem aviso; intervalos sobrepostos também. Falta de meses impede a comparação, sem encurtar a janela nem ocultar a consulta do período A.
+
+O CSV da comparação registra os dois intervalos, quantidades de meses, taxas, diferenças, métodos e fonte. Ele preserva a precisão do cálculo. A procedência individual de cada mês permanece na tabela e no CSV original do período.
+
+Consulte [métodos e interpretação](docs/COMPARACOES.md).
+
 ## Arquitetura
 
 ~~~mermaid
@@ -110,15 +130,17 @@ flowchart LR
     COLETA --> VALIDACAO
     VALIDACAO --> RAW[Arquivos brutos / SHA-256]
     VALIDACAO --> DB[(DuckDB / transação)]
-    DB --> PAINEL[Painel Streamlit]
+    DB --> ANALISE[Análise decimal / comparações]
+    ANALISE --> PAINEL[Painel Streamlit]
+    ANALISE --> COMPARACAO[CSV da comparação]
     DB --> CSV[CSV / procedência]
 ~~~
 
-[Arquitetura e decisões](docs/ARQUITETURA.md) · [Qualidade e testes](docs/VALIDACAO-0.1.0.md) · [Instalação e uso](docs/INSTALACAO.md) · [Dados e limites](docs/DADOS.md).
+[Arquitetura e decisões](docs/ARQUITETURA.md) · [Qualidade e testes atuais](docs/VALIDACAO-0.2.0.md) · [Instalação e uso](docs/INSTALACAO.md) · [Dados e limites](docs/DADOS.md).
 
 ## Pastas e armazenamento
 
-- src/radar_inflacao/: modelo, fonte, pipeline, persistência, CSV e CLI.
+- src/radar_inflacao/: modelo, fonte, pipeline, persistência, análise, CSV e CLI.
 - app.py: interface, sem coleta automática ao consultar filtros.
 - sample/: resposta pública do IBGE, metadados e manifesto versionados.
 - tests/: regras, rede simulada, banco, concorrência e interface.
@@ -128,7 +150,7 @@ flowchart LR
 
 Os iniciadores mantêm ambiente, caches e temporários dentro da pasta do projeto; aqui, no D:. O Python gerenciado foi instalado em D:\Ferramentas\Python\uv-managed. Configurações do editor e do sistema seguem seus próprios locais.
 
-## Limites da primeira versão
+## Limites da versão atual
 
 Série nacional desde 2020, fonte única e arquivo local. Atualizações e leituras da aplicação usam o mesmo bloqueio; outra operação em andamento pode pedir nova tentativa. Não é um servidor analítico para vários usuários ou gravação distribuída.
 
