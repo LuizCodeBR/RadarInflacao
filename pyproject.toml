@@ -1,0 +1,36 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "radar-inflacao"
+version = "0.1.0"
+description = "Pipeline verificável do IPCA/IBGE com painel local e demonstração offline."
+requires-python = ">=3.12,<3.14"
+dependencies = [
+  "duckdb>=1.4,<3",
+  "httpx>=0.28,<1",
+  "filelock>=3.18,<4",
+  "streamlit>=1.45,<2",
+]
+
+[project.scripts]
+radar = "radar_inflacao.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8,<10", "ruff>=0.11,<1"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/radar_inflacao"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-ra"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
