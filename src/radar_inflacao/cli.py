@@ -48,6 +48,16 @@ def main(argv=None) -> int:
     update.add_argument(
         "--full", action="store_true", help="Reconcilia desde 2020, incluindo revisões antigas"
     )
+    sub.add_parser("quality", help="Mostra o relatório local de qualidade, sem consultar a rede")
+    sub.add_parser("quality-demo", help="Cria demonstração offline em .cache/quality-demo")
+    quality_export = sub.add_parser("quality-export", help="Exporta qualidade ou mudanças em CSV")
+    quality_export.add_argument("--report", choices=["summary", "changes"], default="summary")
+    quality_export.add_argument("--dataset", choices=["all", "national", "groups"], default="all")
+    quality_export.add_argument("--kind", choices=["all", "ADDED", "CHANGED"], default="CHANGED")
+    quality_export.add_argument("--group", choices=list(GROUPS))
+    quality_export.add_argument("--from", dest="start", type=month_argument)
+    quality_export.add_argument("--to", dest="end", type=month_argument)
+    quality_export.add_argument("--output", type=Path, required=True)
     sub.add_parser("status", help="Mostra cobertura e última execução")
     export = sub.add_parser("export", help="Exporta a base sem substituir arquivo existente")
     export.add_argument("--dataset", choices=["national", "groups"], default="national")
@@ -57,8 +67,54 @@ def main(argv=None) -> int:
     export.add_argument("--output", type=Path, required=True)
     args = parser.parse_args(argv)
     try:
+        if args.command == "quality-demo":
+            if args.data_dir is not None:
+                raise RadarError(
+                    "A demonstração usa somente .cache/quality-demo; omita --data-dir."
+                )
+            from .simulation import prepare_demo
+
+            demo_repository = prepare_demo(project_root())
+            print(json.dumps({"simulation": True, "directory": str(demo_repository.directory)}))
+            return 0
         repository, pipeline = components(args.data_dir)
-        if args.command in ("demo", "update"):
+        if args.command in ("quality", "quality-export"):
+            from .quality import build_quality
+            from .quality_report import changes_csv_bytes, quality_csv_bytes
+
+            filters = (
+                {}
+                if args.command == "quality"
+                else {
+                    "dataset": args.dataset,
+                    "kind": args.kind,
+                    "group_id": args.group,
+                    "start": args.start,
+                    "end": args.end,
+                }
+            )
+            report = build_quality(repository.quality_snapshot(**filters))
+            if args.command == "quality":
+                result = {
+                    "generated_at": report["generated_at"],
+                    "datasets": [
+                        {k: v for k, v in item.items() if k not in ("rows", "history")}
+                        for item in report["datasets"]
+                    ],
+                    "changes_found": report["total_changes"],
+                }
+            else:
+                data = (
+                    quality_csv_bytes(report)
+                    if args.report == "summary"
+                    else changes_csv_bytes(report)
+                )
+                try:
+                    publish_csv(args.output, data)
+                except FileExistsError as exc:
+                    raise RadarError("O arquivo já existe. Escolha outro destino.") from exc
+                result = {"file": str(args.output.resolve()), "report": args.report}
+        elif args.command in ("demo", "update"):
             group_pipeline = GroupPipeline(repository, project_root() / "sample/groups")
             workers = (
                 [("national", pipeline), ("groups", group_pipeline)]

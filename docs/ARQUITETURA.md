@@ -1,4 +1,4 @@
-# Arquitetura — Radar da Inflação 0.3.1
+# Arquitetura — Radar da Inflação 0.4.0
 
 ## Escopo e escolhas
 
@@ -6,12 +6,17 @@ Uma aplicação Python com módulos por responsabilidade. Interface, CLI e teste
 
 | Módulo | Responsabilidade |
 | --- | --- |
+| audit.py | Migração 3, estágios, mudanças por campo e snapshot da central |
+| quality.py | Verificações explicáveis sobre o retrato local |
+| quality_report.py | CSV de qualidade e mudanças com validação tipada |
+| quality_view.py | Central, filtros, paginação e downloads preparados |
+| simulation.py | Cenário offline identificado em base separada |
 | groups.py | Categorias, contrato 7060, filtros, ranking e comparações por grupo |
 | group_view.py | Painel dos grupos, gráficos Altair e downloads |
 | model.py | Meses, números decimais, JSON sem chaves duplicadas e contrato do IBGE |
 | source.py | Origem HTTPS fixa, timeouts, limite de tamanho e retentativas limitadas |
 | pipeline.py | Amostra/coleta, validação integral, arquivo bruto e publicação transacional |
-| storage.py | DuckDB, esquema 2, lock entre processos e consultas parametrizadas |
+| storage.py | DuckDB, esquema 3, lock entre processos e consultas parametrizadas |
 | analysis.py | Resumo de intervalos, composição decimal, comparação e apresentação de taxas |
 | report.py | CSV mensal com procedência e CSV de comparação com método e janelas |
 | cli.py | Comandos e identificação da pasta independente |
@@ -30,7 +35,7 @@ Uma aplicação Python com módulos por responsabilidade. Interface, CLI e teste
 
 ## Persistência e concorrência
 
-observation tem uma linha por mês, três DECIMAL(14,6) e vínculo à última coleta que conferiu o mês. ingestion guarda modo, origem, período, hashes, situação e contagens de novos/corrigidos/sem alteração. schema_version=2 recusa versão desconhecida e migra a versão 1 por transação.
+observation tem uma linha por mês, três DECIMAL(14,6) e vínculo à última coleta que conferiu o mês. ingestion guarda modo, origem, período, hashes, situação e contagens de novos/corrigidos/sem alteração. schema_version=3 recusa versão desconhecida e migra versões 1/2 pelas etapas transacionais correspondentes.
 
 FileLock usa bloqueio entre processos; a aplicação mantém o lock durante a operação e fecha a conexão depois. Isso também coordena consultas da interface/CLI e atualizações. Custo: durante coleta, uma consulta concorrente pode ser recusada para nova tentativa. Esta arquitetura é local, em um computador e disco convencional; não declara suporte a pasta sincronizada, compartilhamento de rede ou múltiplos servidores.
 
@@ -110,3 +115,22 @@ O ranking usa Decimal.copy_negate(), que não arredonda nem herda a precisão do
 O gráfico de evolução usa dados inline limitados pelo contrato da aplicação, sem desabilitar globalmente a proteção de volume do Altair. O gráfico comparativo confere se a conversão decimal para float resulta em números finitos; caso contrário, a interface informa a limitação e mantém a representação decimal na tabela e no CSV.
 
 Esquema 2, bloqueio, transações, publicação de arquivos, origem fixa e dependências permanecem. Ensaios de processos reais confirmam commit completo, rollback após morte do escritor, recuperação do histórico INTERRUPTED e proteção contra sobrescrita concorrente de CSV. [Revisão completa](REVISAO-0.3.1.md).
+
+
+## Central de qualidade na versão 0.4.0
+
+A migração 2→3 é transacional: audit_baseline registra início do histórico e quantidades existentes, audit_run acompanha a etapa e metadados validados de cada nova tentativa, data_change guarda diferenças por campo. Não há reconstrução retroativa. A migração 1→2→3 também é suportada; versões desconhecidas são recusadas.
+
+O pipeline mantém o bloqueio durante a operação. Após validar metadados de uma consulta, arquiva sua resposta e registra mês disponível/data/hash mesmo se o download posterior falhar. As etapas operacionais são gravadas fora da publicação analítica; sucesso, valores e mudanças são confirmados na mesma transação. Uma interrupção antes do commit desfaz valores/histórico e deixa a tentativa para ser marcada INTERRUPTED na próxima abertura, preservando a etapa em que parou.
+
+Cada inclusão tem um evento por medida, inclusive campo histórico ausente explicitamente. Alterações registram somente valores diferentes, com coleta anterior/atual; mudança de procedência sem diferença numérica é reconferência. A chave dataset/coleta/mês/grupo/campo impede duplicação do evento. Há distinção entre ADDED e CHANGED, sem atribuir revisão oficial a uma diferença.
+
+quality_snapshot() lê observações, tentativas, última publicação, referência e histórico sob um único bloqueio. O total é contado separadamente e a consulta retorna no máximo 10000 mudanças. O exportador recusa relatórios truncados; a interface pede filtros mais específicos. Não há remoção automática de eventos do banco.
+
+quality.py reutiliza validadores existentes e executa verificações locais de cobertura desde 2020, medidas/pesos/ausência e procedência. Resultados do retrato atual são calculados sob demanda; não são um arquivo histórico de todas as verificações já executadas. Disponibilidade é o que foi observado nos últimos metadados registrados, e não uma afirmação em tempo real. A última tentativa e a última publicação são consultadas separadamente mesmo que existam mais de 20 falhas recentes.
+
+Datas TIMESTAMPTZ são convertidas para strings UTC no SQL, evitando acrescentar dependências para materializar fusos no Python. Os CSVs conservam BOM, ponto e vírgula, vírgula decimal e publicação sem sobrescrita; download usa on_click="ignore" e bytes do snapshot.
+
+A demonstração usa fontes locais, modo simulation e marcador em .cache/quality-demo. Importa amostras, altera o último valor mensal do índice geral e de Alimentação e bebidas para 9,99, reconfere sem mudanças e recusa um lote de grupos com mês faltante. Os dados e CSVs são explicitamente simulados. Pasta existente sem marcador é recusada. A preparação repetida reutiliza o cenário; não o executa novamente. Durante o exemplo, a atualização da base principal fica desabilitada na interface.
+
+Limites do bloqueio local e da publicação de CSV permanecem. O histórico não é assinado ou protegido contra um usuário que pode editar todos os arquivos. Para recuperar uma instalação inteira, preserve a pasta data com o aplicativo encerrado. [Guia](QUALIDADE.md) e [validação](VALIDACAO-0.4.0.md).

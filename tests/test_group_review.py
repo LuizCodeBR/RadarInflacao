@@ -237,6 +237,10 @@ def test_real_group_pipeline_commit_or_crash_preserves_snapshot(
     pipeline.demo()
     GroupPipeline(repository, ROOT / "sample/groups").demo()
     before = repository.snapshot(include_groups=True)
+    from radar_inflacao.quality_report import changes_csv_bytes
+
+    quality_before = repository.quality_snapshot()
+    quality_csv = changes_csv_bytes(quality_before)
     args = (list(GROUPS), "2026-10", "2026-10", "2026-09", "2026-09")
     comparison = group_comparisons(before["groups"], *args)
     ranking = group_ranking(before["groups"], list(GROUPS), "2026-10")
@@ -269,6 +273,9 @@ print(result['status'], flush=True)
         with pytest.raises(BusyError):
             repository.snapshot(include_groups=True)
         with pytest.raises(BusyError):
+            repository.quality_snapshot()
+        assert changes_csv_bytes(quality_before) == quality_csv
+        with pytest.raises(BusyError):
             GroupPipeline(repository, ROOT / "sample/groups", GroupFakeSource()).update()
         assert old_exports == (group_csv_bytes(before["groups"]), group_csv_bytes(ranking),
                                group_comparison_csv_bytes(comparison))
@@ -285,6 +292,11 @@ print(result['status'], flush=True)
     after = repository.snapshot(include_groups=True)
     assert after["rows"] == before["rows"]
     assert len(after["groups"]) == len(before["groups"]) == 738
+    quality_after = repository.quality_snapshot()
+    assert quality_after["total_changes"] == (0 if finish == "crash" else 1)
+    assert quality_after["datasets"][1]["latest_attempt"]["stage"] == (
+        "PUBLISH" if finish == "crash" else "COMPLETE"
+    )
     if finish == "crash":
         assert after["groups"] == before["groups"]
         assert after["groups_history"][0][4] == "INTERRUPTED"

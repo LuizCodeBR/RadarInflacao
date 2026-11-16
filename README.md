@@ -2,7 +2,7 @@
 
 Pipeline de dados públicos do **IPCA nacional**, com Python, SQL/DuckDB e painel Streamlit. Coleta dados do IBGE, valida o contrato da fonte, preserva a última base válida e registra origem, hash e resultado de cada execução.
 
-**Versão 0.3.1 · execução local · sem conta, chave de API ou recurso pago.**
+**Versão 0.4.0 · execução local · sem conta, chave de API ou recurso pago.**
 
 ![Painel do Radar da Inflação](docs/imagens/painel-desktop.png)
 
@@ -49,6 +49,9 @@ O iniciador prepara o ambiente e abre o mesmo painel local. A validação realiz
 - Comparação com período anterior de mesma duração, mesmo período do ano anterior ou intervalo manual.
 - Acumulado estimado por composição, diferenças em pontos percentuais e CSV da comparação.
 - Explicações contextualizadas e avisos de cobertura, durações diferentes e sobreposição.
+- Central de qualidade com verificações locais, última tentativa e última publicação por conjunto.
+- Histórico por indicador: inclusões e mudanças, antes/depois, coleta e hash de origem.
+- CSV da qualidade e das mudanças filtradas; demonstração offline isolada.
 - Análise dos nove grupos: evolução, ranking mensal, peso, comparação A/B e três CSVs.
 - Amostra dos grupos com 738 registros (82 meses × nove grupos) e ausência histórica identificada.
 - Migração automática do banco do esquema 1 para 2, preservando o índice geral.
@@ -119,6 +122,33 @@ Atualizar pelo IBGE e atualizar.cmd atendem ao índice geral e aos grupos. Cada 
 
 ![Grupos do IPCA](docs/imagens/grupos-desktop.png)
 
+## Qualidade, atualização e histórico — 0.4.0
+
+Em Análise, escolha **Qualidade e atualização**. A central mostra cobertura, taxas/pesos/ausências, procedência, última tentativa e última publicação concluída, separadamente para o índice geral e os nove grupos. As verificações usam o banco local; não consultam a internet ao abrir filtros.
+
+A disponibilidade corresponde aos últimos metadados registrados: a tela distingue amostra, consulta e simulação, com data. Uma falha após consultar metadados pode avisar que existe mês pendente, sem fazer a base anterior parecer recém-atualizada.
+
+O histórico registra inclusões e alterações por campo, com valor anterior/novo, coleta e hash. Uma reconferência sem diferença não cria alterações. Na primeira importação há 3198 inclusões de campos (82 × 3 + 738 × 4); bases existentes começam a registrar o histórico a partir da migração, sem inventar mudanças anteriores.
+
+Para experimentar, ative **Usar demonstração offline separada**. O exemplo prepara duas alterações sintéticas, reconferências sem mudanças e uma coleta inválida recusada em .cache/quality-demo. A base principal é preservada e o CSV identifica Simulação offline. Desative o exemplo para retornar à sua base.
+
+Os filtros por conjunto, evento, mês e grupo afetam o histórico. Há CSV da qualidade e CSV das mudanças filtradas, usando o retrato exibido. O histórico aparece em páginas de 50 eventos; acima de 10000 eventos por consulta é preciso refinar filtros antes de exportar.
+
+![Central de qualidade](docs/imagens/qualidade-desktop.png)
+
+~~~powershell
+.\.venv\Scripts\python.exe -m radar_inflacao quality
+.\.venv\Scripts\python.exe -m radar_inflacao quality-demo
+.\.venv\Scripts\python.exe -m radar_inflacao quality-export --output exports\qualidade.csv
+.\.venv\Scripts\python.exe -m radar_inflacao quality-export --report changes --kind CHANGED --output exports\mudancas.csv
+~~~
+
+Python e dependências permanecem. O banco migra para esquema 3 na primeira abertura. Antes de atualizar uma instalação própria, encerre o aplicativo e preserve a pasta data; o código antigo não abre o esquema novo.
+
+**268 testes aprovados no Windows / Python 3.13 e 3.12**, incluindo migração, falhas, CSV e concorrência.
+
+[Guia da central e dos relatórios](docs/QUALIDADE.md) · [Validação 0.4.0](docs/VALIDACAO-0.4.0.md).
+
 ## Comparar períodos e entender os indicadores
 
 1. Escolha os meses inicial e final: eles definem o período A.
@@ -167,7 +197,7 @@ flowchart LR
     DB --> CSV[CSV / procedência]
 ~~~
 
-[Arquitetura e decisões](docs/ARQUITETURA.md) · [Revisão e testes atuais](docs/REVISAO-0.3.1.md) · [Instalação e uso](docs/INSTALACAO.md) · [Dados e limites](docs/DADOS.md).
+[Arquitetura e decisões](docs/ARQUITETURA.md) · [Testes atuais](docs/VALIDACAO-0.4.0.md) · [Instalação e uso](docs/INSTALACAO.md) · [Dados e limites](docs/DADOS.md).
 
 ## Pastas e armazenamento
 

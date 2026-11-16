@@ -56,7 +56,7 @@ def _number(value: Decimal) -> str:
 def _provenance(row: dict) -> tuple[str, str, str, str]:
     try:
         mode = row["mode"]
-        if mode not in ("sample", "live"):
+        if mode not in ("sample", "live", "simulation"):
             raise ValueError
         timestamp = _text(row["retrieved_at"])
         if (
@@ -71,7 +71,8 @@ def _provenance(row: dict) -> tuple[str, str, str, str]:
         digest, run_id = _text(row["raw_sha256"]), _text(row["run_id"])
         if not re.fullmatch(r"[0-9a-f]{64}", digest) or str(UUID(run_id)) != run_id:
             raise ValueError
-        return "Amostra" if mode == "sample" else "Consulta IBGE", timestamp, digest, run_id
+        label = {"sample": "Amostra", "live": "Consulta IBGE", "simulation": "Simulação offline"}
+        return label[mode], timestamp, digest, run_id
     except (KeyError, ValueError, TypeError, AttributeError) as exc:
         raise ValidationError("Procedência inválida para exportação CSV.") from exc
 

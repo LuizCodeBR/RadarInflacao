@@ -44,7 +44,7 @@ class Repository:
         row = db.execute("SELECT version FROM schema_version").fetchall()
         if not row:
             db.execute("INSERT INTO schema_version VALUES (1)")
-        elif row not in ([(1,)], [(2,)]):
+        elif row not in ([(1,)], [(2,)], [(3,)]):
             raise ValidationError(
                 "Esquema de banco incompatível. Preserve a base e use versão compatível."
             )
@@ -66,8 +66,12 @@ class Repository:
           )
         """)
 
-        if row != [(2,)]:
+        if row not in ([(2,)], [(3,)]):
             Repository._migrate_groups(db)
+        if row != [(3,)]:
+            from .audit import migrate
+
+            migrate(db)
         db.execute(
             """UPDATE group_ingestion SET status='INTERRUPTED', finished_at=current_timestamp,
                  error='Execução interrompida antes da conclusão.' WHERE status='RUNNING'"""
@@ -126,6 +130,12 @@ class Repository:
                     FROM group_ingestion ORDER BY started_at DESC, id DESC LIMIT 20
                 """).fetchall()
             return result
+
+    def quality_snapshot(self, **filters) -> dict:
+        from .audit import read_snapshot
+
+        with self.locked() as db:
+            return read_snapshot(self, db, **filters)
 
     @staticmethod
     def upsert(db, rows: list[Observation], run_id: str) -> tuple[int, int, int]:

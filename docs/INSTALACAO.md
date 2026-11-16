@@ -46,3 +46,14 @@ Mesmas dependências. O painel oferece Índice geral e Grupos de despesas. A pas
 O banco migra do esquema 1 para 2 na primeira abertura, preservando as observações e o histórico nacionais. Não execute a versão antiga contra um banco já migrado. Antes de substituir uma instalação própria, com o aplicativo encerrado, preserve a pasta data para manter uma cópia compatível com a versão anterior.
 
 atualizar.cmd atualiza os dois conjuntos; falhas são informadas separadamente. A CLI permite update --dataset groups ou --dataset national. Veja [guia dos grupos](GRUPOS.md).
+
+
+## Atualização para 0.4.0
+
+Nenhuma dependência ou extensão nova. Iniciar/testar/atualizar continuam iguais. A nova opção Qualidade e atualização fica no seletor Análise do painel. Depois da preparação inicial, a demonstração offline é ativada pelo próprio painel e usa .cache/quality-demo, sem rede ou conta.
+
+O esquema migra de 2 para 3, em transação, preservando observações e tentativas existentes. Também é possível migrar de 1 para 3. Antes de atualizar sua instalação, com o aplicativo encerrado, preserve a pasta data. O código anterior recusa o esquema 3; para retornar a ele seria necessário restaurar uma cópia compatível.
+
+Neste computador, foi criada uma cópia anterior do banco em D:/Projetos/RadarInflacao/.cache/antes-migracao040. A migração conservou 82 registros nacionais, 738 dos grupos e as tentativas anteriores, sem mudanças retrospectivas inventadas.
+
+Novos comandos: quality, quality-export e quality-demo. Somente quality-demo usa a pasta fixa do exemplo e recusa --data-dir para impedir que o cenário seja criado sobre outra base. quality e quality-export aceitam a opção global --data-dir ou RADAR_DATA_DIR para consultar outra base. [Guia e exemplos](QUALIDADE.md).

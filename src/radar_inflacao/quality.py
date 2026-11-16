@@ -1,0 +1,117 @@
+"""Verificações explicáveis sobre um único retrato local; nenhuma consulta à rede."""
+
+from __future__ import annotations
+
+from .analysis import validated_rate
+from .audit import DATASETS
+from .errors import RadarError
+from .groups import GROUPS, filter_group_rows, validate_group_rows
+from .model import BASE_MONTH, month, periods
+from .report import _provenance
+
+CHECKS = {
+    "coverage": "Cobertura de meses e grupos",
+    "values": "Taxas, pesos e ausências",
+    "provenance": "Identificação da origem",
+    "availability": "Disponibilidade na última consulta",
+}
+
+
+def _coverage(rows, grouped):
+    if not rows:
+        return "EMPTY", "Ainda não há observações publicadas."
+    months = sorted({month(r.get("period")) for r in rows})
+    expected = periods(BASE_MONTH, months[-1])
+    if grouped:
+        filter_group_rows(rows, list(GROUPS), BASE_MONTH, months[-1])
+    elif [r["period"] for r in rows] != expected:
+        return "ERROR", "A série deve ter todos os meses desde 2020, sem duplicações."
+    return "OK", f"{len(expected)} meses completos desde 2020-01."
+
+
+def _values(rows, grouped):
+    if not rows:
+        return "EMPTY", "Sem dados para verificar."
+    if grouped:
+        validate_group_rows(rows)
+        missing = sum(r["twelve_month"] is None for r in rows)
+        return "OK", (
+            f"Taxas e pesos válidos; {missing} campos de 12 meses na ausência "
+            "histórica permitida (jan–nov/2020)."
+        )
+    for row in rows:
+        for field in ("monthly", "year_to_date", "twelve_month"):
+            validated_rate(row.get(field))
+    return "OK", "Três medidas obrigatórias e taxas decimais válidas."
+
+
+def _origin(rows):
+    if not rows:
+        return "EMPTY", "Sem procedência para verificar."
+    for row in rows:
+        _provenance(row)
+    return "OK", "Modo, data com fuso, hash e identificação da coleta válidos."
+
+
+def _availability(rows, reference):
+    if not reference:
+        return "UNKNOWN", "Disponibilidade não registrada; faça uma atualização sob demanda."
+    end = month(reference["declared_end"])
+    observed = reference["metadata_observed_at"]
+    local_end = max((r["period"] for r in rows), default=None)
+    if reference["mode"] == "simulation":
+        return "INFO", f"Referência simulada até {end}; sem consulta online."
+    if reference["mode"] == "sample":
+        return "INFO", f"Metadados da amostra até {end}, obtidos em {observed}; sem consulta agora."
+    if local_end is None or local_end < end:
+        return "WARNING", (
+            f"IBGE declarou dados até {end} na consulta de {observed}; "
+            "a base local ainda não cobre esse mês."
+        )
+    if local_end > end:
+        return "WARNING", "A referência consultada é anterior ao último mês local; confira a base."
+    return "OK", f"Base até {end}, conforme metadados consultados em {observed}."
+
+
+def build_quality(snapshot):
+    result = []
+    for item in snapshot["datasets"]:
+        rows, grouped = item["rows"], item["dataset"] == "groups"
+        checks = []
+        for code, check in [
+            ("coverage", lambda rows=rows, grouped=grouped: _coverage(rows, grouped)),
+            ("values", lambda rows=rows, grouped=grouped: _values(rows, grouped)),
+            ("provenance", lambda rows=rows: _origin(rows)),
+            ("availability", lambda rows=rows, item=item: _availability(rows, item["reference"])),
+        ]:
+            try:
+                status, detail = check()
+                if code == "coverage" and len(rows) != item["raw_count"]:
+                    status, detail = "ERROR", "Há registros sem vínculo válido de grupo ou coleta."
+            except RadarError as error:
+                status, detail = "ERROR", str(error)
+            checks.append({"code": code, "status": status, "detail": detail})
+        months = sorted({r["period"] for r in rows})
+        statuses = {c["status"] for c in checks}
+        grade = (
+            "ERROR"
+            if "ERROR" in statuses
+            else "EMPTY"
+            if not rows
+            else "WARNING"
+            if statuses & {"WARNING", "UNKNOWN"}
+            else "OK"
+        )
+        result.append(
+            {
+                **item,
+                "label": DATASETS[item["dataset"]],
+                "checks": checks,
+                "grade": grade,
+                "count": len(rows),
+                "start": months[0] if months else None,
+                "end": months[-1] if months else None,
+                "modes": sorted({r["mode"] for r in rows}),
+            }
+        )
+    return {**snapshot, "datasets": result}

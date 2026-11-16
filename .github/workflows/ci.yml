@@ -36,3 +36,6 @@ jobs:
           python -m radar_inflacao --data-dir .cache/smoke demo
           python -m radar_inflacao --data-dir .cache/smoke demo
           python -m radar_inflacao --data-dir .cache/smoke status
+          python -m radar_inflacao --data-dir .cache/smoke quality
+          python -m radar_inflacao --data-dir .cache/smoke quality-export --output .cache/smoke-quality.csv
+          python -m radar_inflacao --data-dir .cache/smoke quality-export --report changes --kind ADDED --output .cache/smoke-changes.csv

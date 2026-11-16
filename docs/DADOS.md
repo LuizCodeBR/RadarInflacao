@@ -20,7 +20,7 @@ Valores decimais têm até seis casas e faixa técnica entre -100 e 999999,99999
 
 Cada mês aponta para a última coleta que o conferiu. O CSV inclui modo, momento, hash e ID da coleta. A origem do mês pode ser amostra ou consulta; uma base pode misturar ambos. A atualização completa permite reconferir todo o período pela API.
 
-Histórico de execução não é uma promessa de histórico imutável de todos os valores revisados. Respostas brutas validadas permitem inspecionar lotes anteriores; o banco analítico representa a última versão publicada de cada mês. Arquivos alterados no disco não são automaticamente reparados.
+Até a versão 0.3.1, o banco preservava histórico de execução e arquivos brutos, sem eventos de antes/depois por campo. A partir da 0.4.0, mudanças detectadas são registradas prospectivamente na central, sem garantia de imutabilidade contra edição externa. Respostas brutas validadas permitem inspecionar lotes anteriores; o banco analítico representa a última versão publicada de cada mês. Arquivos alterados no disco não são automaticamente reparados.
 
 A disponibilidade do IBGE pode mudar. Falhas não são convertidas silenciosamente em sucesso com a amostra. A atualização pede nova tentativa e preserva os dados publicados anteriormente.
 
@@ -50,3 +50,14 @@ Na versão 0.3.0, tabela 7060 com Brasil/N1/1, classificação 315 e nove grupos
 Os 99 campos ausentes são exclusivamente os acumulados em 12 meses dos nove grupos de janeiro a novembro/2020. Preservados como NULL; CSV vazio, tela Não disponível. Ausência fora dessa regra é erro. A API pode retornar unidade vazia no corpo da variável 2265 nesse intervalo; metadados % e a janela histórica são conferidos.
 
 Pesos são validados entre 0 e 100, soma por mês com tolerância de 0,05 p.p. Os rankings são de variação, sem confundir taxa com contribuição. Consulte [grupos e interpretação](GRUPOS.md).
+
+
+## Qualidade e histórico — 0.4.0
+
+A central verifica o estado local e registra operações de atualização. O histórico de mudanças inicia na migração: observações já existentes continuam iguais e não recebem alterações retroativas inventadas. Na primeira importação de uma base vazia, os campos são inclusões. Na reconferência idêntica, só a procedência e a tentativa são atualizadas.
+
+Um hash identifica uma resposta arquivada, mas não é assinatura de autenticidade do IBGE nem proteção contra alguém com escrita em todo o disco. Uma mudança detectada entre coletas não é automaticamente classificada como revisão oficial. O IPCA tem política de não revisão rotineira; correções excepcionais ou divergências devem ser investigadas em sua fonte.
+
+CSV de histórico distingue inclusão e alteração, valores anteriores/novos, grupo, mês, indicador, modo, momento e IDs/hash. CSV de qualidade registra oito verificações (quatro por conjunto) e o contexto operacional/temporal. Na simulação, o modo é identificado nos dois relatórios; valores artificiais não se tornam dados oficiais.
+
+A indicação de disponibilidade depende dos metadados válidos efetivamente observados. Amostra informa sua data original; consulta online informa a data da verificação; ausência de metadados registrados é Não verificado. Abrir a central ou mudar de mês no calendário não dispara consulta ao IBGE. [Guia da central](QUALIDADE.md).

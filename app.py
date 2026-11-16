@@ -19,6 +19,7 @@ from radar_inflacao.errors import RadarError
 from radar_inflacao.group_view import render_groups
 from radar_inflacao.model import BASE_MONTH, next_month
 from radar_inflacao.pipeline import GroupPipeline
+from radar_inflacao.quality_view import render_quality
 from radar_inflacao.report import comparison_csv_bytes, csv_bytes
 
 st.set_page_config(page_title="Radar da Inflação", page_icon="📊", layout="wide")
@@ -29,7 +30,12 @@ st.markdown(
     "A coleta acontece somente quando você solicita."
 )
 
-view = st.radio("Análise", ["Índice geral", "Grupos de despesas"], horizontal=True, key="view")
+view = st.radio(
+    "Análise",
+    ["Índice geral", "Grupos de despesas", "Qualidade e atualização"],
+    horizontal=True,
+    key="view",
+)
 repository, pipeline = components()
 group_pipeline = GroupPipeline(repository, project_root() / "sample/groups")
 try:
@@ -46,7 +52,12 @@ with st.sidebar:
     st.link_button("Consultar a fonte", "https://sidra.ibge.gov.br/tabela/1737")
     st.caption("Atualização padrão: revisita 24 meses e busca meses novos.")
     full = st.checkbox("Reconferir toda a série desde 2020", key="full_refresh")
-    if st.button("Atualizar pelo IBGE", type="primary", key="update"):
+    simulation_active = view == "Qualidade e atualização" and st.session_state.get(
+        "quality_demo", False
+    )
+    if simulation_active:
+        st.info("Desative a demonstração para atualizar sua base principal.")
+    if st.button("Atualizar pelo IBGE", type="primary", key="update", disabled=simulation_active):
         completed, errors = [], []
         with st.spinner("Consultando e validando o IBGE…"):
             for label, worker in [("Índice geral", pipeline), ("Grupos", group_pipeline)]:
@@ -70,6 +81,10 @@ if notice := st.session_state.pop("notice", None):
 for error in st.session_state.pop("update_errors", []):
     st.error(error)
     st.info("A última base válida desse conjunto continua disponível.")
+if view == "Qualidade e atualização":
+    render_quality(repository, project_root())
+    st.caption(f"Radar da Inflação {__version__} · Central local, sem consulta automática.")
+    st.stop()
 if view == "Grupos de despesas":
     render_groups(snapshot["groups"], snapshot["groups_history"])
     st.caption(f"Radar da Inflação {__version__} · Dados nacionais, sem inflação pessoal.")

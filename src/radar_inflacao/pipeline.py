@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
+from . import audit
 from .errors import RadarError, ValidationError
 from .model import BASE_MONTH, next_month, parse_observations, periods, validate_metadata
 from .source import METADATA_URL, IbgeSource
@@ -107,24 +108,34 @@ class Pipeline:
             self.demo()
 
     def _run(self, mode: str, *, full: bool = False) -> dict:
+        dataset = "groups" if self.grouped else "national"
         with self.repository.locked() as db:
             current = self.current_rows(db)
-            if mode == "sample" and any(row["mode"] == "live" for row in current):
+            if mode == "sample" and any(row["mode"] in ("live", "simulation") for row in current):
                 raise ValidationError(
-                    "A amostra não substitui dados consultados. Use outra pasta de dados."
+                    "A amostra não substitui dados consultados ou simulados. "
+                    "Use outra pasta de dados."
                 )
             run_id = str(uuid.uuid4())
             db.execute(
                 f"INSERT INTO {self.run_table}(id,started_at,mode,status) VALUES(?,?,?,'RUNNING')",
                 [run_id, utc_now(), mode],
             )
+            audit.start_run(db, dataset, run_id)
             transaction = False
             try:
                 if mode == "sample":
+                    audit.stage(db, dataset, run_id, "SAMPLE")
                     batch = sample_batch(self.sample_directory, self.source_type.api)
                 else:
+                    audit.stage(db, dataset, run_id, "METADATA")
                     metadata = self.source.metadata()
                     end = self.metadata_validator(metadata.raw)
+                    metadata_digest, _ = archive(
+                        self.repository.directory, metadata.raw, ".metadata.json"
+                    )
+                    observed_at = utc_now()
+                    audit.metadata_seen(db, dataset, run_id, observed_at, end, metadata_digest)
                     if current and end < current[-1]["period"]:
                         raise ValidationError(
                             "A origem está menos recente que a base. Dados preservados."
@@ -134,20 +145,34 @@ class Pipeline:
                         if full or not current
                         else max(BASE_MONTH, next_month(current[-1]["period"], -23))
                     )
+                    audit.stage(db, dataset, run_id, "DOWNLOAD")
                     download = self.source.observations(start, end)
                     batch = Batch(
                         download.raw, metadata.raw, utc_now().isoformat(), download.url, start, end
                     )
+                audit.stage(db, dataset, run_id, "CONTRACT")
                 declared_end = self.metadata_validator(batch.metadata)
+                if mode == "sample":
+                    audit.metadata_seen(
+                        db,
+                        dataset,
+                        run_id,
+                        datetime.fromisoformat(batch.retrieved_at),
+                        declared_end,
+                        hashlib.sha256(batch.metadata).hexdigest(),
+                    )
                 if batch.end > declared_end:
                     raise ValidationError("O período excede a disponibilidade declarada pelo IBGE.")
                 rows = self.parser(batch.raw, periods(batch.start, batch.end))
+                audit.stage(db, dataset, run_id, "ARCHIVE")
                 raw_sha, raw_file = archive(self.repository.directory, batch.raw, ".json")
                 metadata_sha, _ = archive(
                     self.repository.directory, batch.metadata, ".metadata.json"
                 )
+                audit.stage(db, dataset, run_id, "PUBLISH")
                 db.execute("BEGIN TRANSACTION")
                 transaction = True
+                change_count = audit.record_changes(db, dataset, current, rows, run_id, utc_now())
                 counts = (
                     self.repository.upsert_groups(db, rows, run_id)
                     if self.grouped
@@ -172,6 +197,7 @@ class Pipeline:
                         run_id,
                     ],
                 )
+                audit.stage(db, dataset, run_id, "COMPLETE")
                 db.execute("COMMIT")
                 transaction = False
                 return {
@@ -185,6 +211,7 @@ class Pipeline:
                     "updated": counts[1],
                     "unchanged": counts[2],
                     "raw_sha256": raw_sha,
+                    "change_fields": change_count,
                 }
             except Exception as exc:
                 if transaction:
