@@ -35,7 +35,13 @@ class IbgeSource:
     def _download(self, client: httpx.Client, url: str) -> Download:
         for attempt in range(3):
             try:
-                with client.stream("GET", url, headers={"Accept": "application/json"}) as response:
+                with client.stream(
+                    "GET",
+                    url,
+                    headers={"Accept": "application/json"},
+                    follow_redirects=False,
+                    timeout=httpx.Timeout(15, connect=10),
+                ) as response:
                     if response.status_code == 429 or response.status_code >= 500:
                         if attempt < 2:
                             self.sleeper(attempt + 1)

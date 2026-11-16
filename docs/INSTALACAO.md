@@ -61,3 +61,9 @@ Novos comandos: quality, quality-export e quality-demo. Somente quality-demo usa
 ## Atualização para 0.5.0
 
 Mesmas dependências, sem extensão nova. A opção Comparar áreas prepara sua amostra na primeira abertura, sem rede. Atualizar pelo IBGE e atualizar.cmd incluem nacional, grupos e áreas. CLI permite restringir com --dataset areas. O banco migra para esquema 4; preserve data/ com o aplicativo encerrado antes de substituir outra instalação. Nesta máquina, a cópia anterior ficou em D:/Projetos/RadarInflacao/.cache/antes-migracao050. A migração preservou todos os conjuntos/históricos anteriores e acrescentou 1394 registros regionais. [Guia das áreas](AREAS.md).
+
+## Atualização para 0.5.1
+
+Encerre o painel e use o pacote completo da nova versão. Preserve a pasta data de sua instalação. Esta revisão usa o mesmo esquema 4 da 0.5.0 e não precisa migrar o banco. Python 3.12 ou 3.13, dependências fixadas e iniciadores permanecem; nenhuma extensão do VS Code ou serviço adicional é necessário.
+
+No computador de desenvolvimento, a base principal foi preservada e os ensaios ocorreram em pastas separadas no D:. [Relatório da revisão](REVISAO-0.5.1.md).

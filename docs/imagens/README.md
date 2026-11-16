@@ -43,7 +43,7 @@ Capturas reais em servidor local. A demonstração está ativada e explicitament
 As capturas da central foram atualizadas na revisão 0.4.1, incluindo a legenda dos filtros efetivamente aplicados. Os cenários continuam explicitamente simulados.
 
 
-## Áreas do IPCA — 0.5.0
+## Áreas do IPCA — 0.5.1
 
 Capturas reais no Chromium local, com a amostra oficial de janeiro/2020 a outubro/2026. Seleção padrão São Paulo, Rio de Janeiro e Brasília, com Brasil no gráfico, período novembro/2024–outubro/2026. Ranking mensal de outubro/2026. Desktop 1440 pixels e mobile emulado 412 pixels, sem transbordamento da página. A tabela larga possui rolagem horizontal.
 
@@ -52,3 +52,5 @@ Capturas reais no Chromium local, com a amostra oficial de janeiro/2020 a outubr
 ![Ranking e diferenças](areas-ranking.png)
 
 <img src="areas-mobile.png" alt="Análise regional no navegador de celular emulado" width="360">
+
+Capturas regionais atualizadas na revisão 0.5.1, após conferir filtros e os três downloads no navegador. A visualização mobile é emulação, não teste em aparelho físico.

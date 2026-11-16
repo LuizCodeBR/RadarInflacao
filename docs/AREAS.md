@@ -95,3 +95,13 @@ Omitir --areas exporta as 16; a referência brasileira acompanha cada linha. --d
 Encerre o aplicativo e preserve data/ antes de substituir o código. Inicie a nova versão normalmente; o banco migra para 4. Versões até 0.4.1 não abrem esquema 4. Guarde uma cópia anterior compatível se precisar reverter. Não compartilhe o DuckDB por pasta de rede/sincronizada com múltiplos escritores.
 
 [Validação desta entrega](VALIDACAO-0.5.0.md) · [Central de qualidade](QUALIDADE.md) · [Arquitetura](ARQUITETURA.md).
+
+## Revisão 0.5.1
+
+Antes de analisar ou exportar, o retrato regional inteiro é validado: valores, área, mês, dia 1, modo, UUID, hash, data com fuso, coleta concluída, intervalo da coleta e URL exata da consulta regional. Para cada mês, todas as áreas presentes e Brasil devem compartilhar a mesma identificação de coleta. A comparação verifica também os meses de B, mesmo fora do intervalo A. Dados inconsistentes geram erro controlado antes dos gráficos e dos downloads.
+
+É normal que meses antigos venham da amostra e os recentes de atualização incremental; a igualdade é exigida entre localidades do mesmo mês. A central de qualidade também sinaliza mistura indevida e vínculos inválidos. A leitura mantém registros sem vínculo como inconsistência visível, em vez de ocultá-los por junção interna.
+
+Os metadados regionais validam apenas a tabela 7060, frequência mensal, três variáveis/unidades, os níveis territoriais e a categoria Índice geral. Alterações em grupos ou pesos não consultados deixam de bloquear esta análise. As regras próprias dos nove grupos permanecem.
+
+Não há migração adicional, nova dependência ou alteração das colunas dos três CSVs. O pacote, o fluxo local e a interface responsiva continuam os mesmos. [Relatório da revisão](REVISAO-0.5.1.md).

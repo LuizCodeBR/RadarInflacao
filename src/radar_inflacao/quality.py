@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from .analysis import validated_rate
-from .areas import LOCATIONS, filter_area_rows, validate_area_rows
+from .areas import LOCATIONS, filter_area_rows, validate_area_rows, validate_area_snapshot
 from .audit import DATASETS
 from .audit_contract import validate_reference, validate_run
 from .errors import RadarError
@@ -64,6 +64,8 @@ def _origin(item):
         validate_run(run)
     if not rows:
         return "EMPTY", "Sem procedência para verificar."
+    if item["dataset"] == "areas":
+        validate_area_snapshot(rows)
     for row in rows:
         _provenance(row)
     return "OK", "Modo, data com fuso, hash e vínculos das publicações e do histórico válidos."

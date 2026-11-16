@@ -12,7 +12,7 @@ from .areas import (
     area_comparisons,
     area_ranking,
     filter_area_rows,
-    validate_area_rows,
+    validate_area_snapshot,
 )
 from .errors import RadarError
 
@@ -85,7 +85,7 @@ def render_areas(rows, history):
         st.info("Importe a amostra regional ou solicite a atualização para consultar as áreas.")
         return
     try:
-        validate_area_rows(rows)
+        validate_area_snapshot(rows)
         available = sorted({r["period"] for r in rows})
         filter_area_rows(rows, list(LOCATIONS), available[0], available[-1], brazil=True)
     except RadarError as error:

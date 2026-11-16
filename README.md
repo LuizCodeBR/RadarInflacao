@@ -2,9 +2,11 @@
 
 Pipeline de dados públicos do **IPCA nacional e das 16 áreas pesquisadas**, com Python, SQL/DuckDB e painel Streamlit. Coleta dados do IBGE, valida o contrato da fonte, preserva a última base válida e registra origem, hash e resultado de cada execução.
 
-**Versão 0.5.0 · execução local · sem conta, chave de API ou recurso pago.**
+**Versão 0.5.1 · execução local · sem conta, chave de API ou recurso pago.**
 
 ![Painel do Radar da Inflação](docs/imagens/painel-desktop.png)
+
+A revisão **0.5.1** reforça a validação da procedência regional antes de gráficos, ranking, comparações e CSV. Área e Brasil do mesmo mês precisam pertencer à mesma coleta concluída. Mantém o esquema 4, os formatos de CSV e as dependências da 0.5.0. [Correções, testes e limites](docs/REVISAO-0.5.1.md).
 
 ## Experimentar no Windows
 
@@ -171,7 +173,7 @@ Os filtros por conjunto, evento, mês e grupo afetam o histórico. Há CSV da qu
 
 Python e dependências permanecem. A versão 0.5.0 migra para esquema 4, preservando o histórico introduzido na 0.4.0. Antes de atualizar uma instalação própria, encerre o aplicativo e preserve a pasta data. Versões até 0.4.1 não abrem o esquema 4.
 
-**371 testes aprovados no Windows / Python 3.13 e 3.12**, incluindo 55 casos novos das áreas, migrações, falhas, CSV e concorrência.
+**420 testes aprovados no Windows / Python 3.13 e 3.12**, incluindo 49 regressões da revisão regional. Consulte os resultados e limites da [revisão 0.5.1](docs/REVISAO-0.5.1.md).
 
 Na revisão 0.4.1, vínculos inválidos deixam de desaparecer do histórico; publicação, procedência e disponibilidade são revalidadas. CSV incompleto, duplicado ou divergente dos filtros é recusado. A demonstração tem verificações de pasta/banco e não pode receber atualizações pela CLI nem ser usada como base principal do painel. Não há nova migração ou dependência.
 
@@ -225,7 +227,7 @@ flowchart LR
     DB --> CSV[CSV / procedência]
 ~~~
 
-[Arquitetura e decisões](docs/ARQUITETURA.md) · [Testes atuais](docs/VALIDACAO-0.5.0.md) · [Instalação e uso](docs/INSTALACAO.md) · [Dados e limites](docs/DADOS.md).
+[Arquitetura e decisões](docs/ARQUITETURA.md) · [Revisão e testes atuais](docs/REVISAO-0.5.1.md) · [Instalação e uso](docs/INSTALACAO.md) · [Dados e limites](docs/DADOS.md).
 
 ## Pastas e armazenamento
 

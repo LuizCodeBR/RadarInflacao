@@ -1,4 +1,4 @@
-# Arquitetura — Radar da Inflação 0.5.0
+# Arquitetura — Radar da Inflação 0.5.1
 
 ## Escopo e escolhas
 
@@ -160,3 +160,13 @@ area_report.py valida o recorte e a referência, calcula diferenças em contexto
 A migração é transacional; falha desfaz estruturas novas. A aplicação principal pode abrir bancos 1/2/3 e encadeia as migrações até 4. Instalações antigas não abrem 4. O histórico pré-existente é preservado; o regional começa quando seus dados são importados.
 
 [Guia e limites regionais](AREAS.md) · [Validação](VALIDACAO-0.5.0.md).
+
+## Revisão regional 0.5.1
+
+A camada de leitura regional conserva dia, estado/finalização e intervalo da coleta, além da procedência existente. LEFT JOIN evita ocultar registros inválidos. `validate_area_snapshot` aplica o contrato antes do recorte analítico; a interface valida antes de ler modos ou desenhar. O exportador, ranking e comparação usam o mesmo caminho de filtro. A central reutiliza a validação no diagnóstico de origem.
+
+Cada mês possui uma identidade de publicação compartilhada pelas localidades; meses distintos podem ter coletas distintas. Isso verifica uma propriedade já garantida pela transação do pipeline e detecta inconsistências locais. Não prova autenticidade dos números contra um adversário com escrita no disco.
+
+O contrato dos metadados regionais deixa de depender das nove categorias de despesas ou da variável peso. As consultas HTTP fixam ausência de redirecionamento e timeout em cada requisição, inclusive quando recebem um cliente HTTP externo. Isso mantém a política do coletor nas três fontes.
+
+Esquema 4 preservado; sem refatoração da coordenação por FileLock nem substituição do DuckDB. [Testes e limites](REVISAO-0.5.1.md).

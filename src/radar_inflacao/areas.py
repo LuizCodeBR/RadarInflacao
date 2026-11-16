@@ -8,7 +8,6 @@ from decimal import Decimal, localcontext
 
 from .analysis import _context, compare_periods, validated_rate
 from .errors import ValidationError
-from .groups import validate_group_metadata
 from .model import BASE_MONTH, month, periods, read_json
 
 AREA_NAMES = {
@@ -82,19 +81,38 @@ def area_data_url(start, end):
 
 
 def validate_area_metadata(raw):
-    end = validate_group_metadata(raw)
     data = read_json(raw)
     try:
-        if not {"N1", "N6", "N7"} <= set(data["nivelTerritorial"]["Administrativo"]):
+        if (
+            type(data["id"]) is not int
+            or data["id"] != 7060
+            or data["periodicidade"]["frequencia"] != "mensal"
+            or not {"N1", "N6", "N7"} <= set(data["nivelTerritorial"]["Administrativo"])
+        ):
             raise ValueError
-        category = [c for c in data["classificacoes"][0]["categorias"] if c["id"] == 7169]
+        variables = data["variaveis"]
+        ids = [str(v["id"]) for v in variables]
+        if len(ids) != len(set(ids)) or not set(VARIABLES) <= set(ids):
+            raise ValueError
+        if any(v["unidade"] != "%" for v in variables if str(v["id"]) in VARIABLES):
+            raise ValueError
+        classifications = [c for c in data["classificacoes"] if c["id"] == 315]
+        if len(classifications) != 1:
+            raise ValueError
+        category = [c for c in classifications[0]["categorias"] if c["id"] == 7169]
         if len(category) != 1 or category[0]["nome"] != "Índice geral" or category[0]["nivel"] != 0:
             raise ValueError
-    except (KeyError, TypeError, ValueError) as exc:
+        end = str(data["periodicidade"]["fim"])
+        if not re.fullmatch(r"[0-9]{6}", end):
+            raise ValueError
+        end = month(end[:4] + "-" + end[4:])
+        if end < BASE_MONTH:
+            raise ValueError
+        return end
+    except (KeyError, TypeError, ValueError, AttributeError) as exc:
         raise ValidationError(
-            "Metadados regionais incompatíveis: territórios ou índice geral."
+            "Metadados regionais incompatíveis: tabela, medidas, territórios ou índice geral."
         ) from exc
-    return end
 
 
 def parse_area_response(raw, expected):
@@ -238,9 +256,39 @@ def validate_area_rows(rows):
             validated_rate(value)
 
 
+def validate_area_snapshot(rows):
+    """Confere publicações e a mesma coleta para cada mês, antes de qualquer análise."""
+    from .audit_contract import timestamp
+    from .report import _provenance
+
+    validate_area_rows(rows)
+    by_month, by_run, urls = {}, {}, {}
+    for row in rows:
+        origin = _provenance(row)
+        begin, end = month(row.get("run_start")), month(row.get("run_end"))
+        if (
+            type(row.get("period_day")) is not int
+            or row["period_day"] != 1
+            or row.get("run_status") != "SUCCESS"
+            or not BASE_MONTH <= begin <= row["period"] <= end
+        ):
+            raise ValidationError("Publicação regional inválida: situação, data ou cobertura.")
+        finished = timestamp(row.get("run_finished_at"))
+        window = (begin, end)
+        if window not in urls:
+            urls[window] = area_data_url(begin, end)
+        if row.get("source_url") != urls[window]:
+            raise ValidationError("Origem regional incompatível com a consulta autorizada.")
+        identity = (*origin, begin, end, finished)
+        if by_run.setdefault(row["run_id"], identity) != identity:
+            raise ValidationError("Identificação divergente para a mesma coleta regional.")
+        if by_month.setdefault(row["period"], identity) != identity:
+            raise ValidationError("Áreas e Brasil do mesmo mês devem pertencer à mesma coleta.")
+
+
 def filter_area_rows(rows, keys, start, end, *, brazil=False):
     keys = selected_areas(keys, brazil=brazil)
-    validate_area_rows(rows)
+    validate_area_snapshot(rows)
     expected = {(p, k) for p in periods(start, end) for k in keys}
     selected = [r for r in rows if start <= r["period"] <= end and r["area_key"] in keys]
     if {(r["period"], r["area_key"]) for r in selected} != expected:

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "radar-inflacao"
-version = "0.5.0"
+version = "0.5.1"
 description = "Pipeline verificável do IPCA/IBGE com painel local e demonstração offline."
 requires-python = ">=3.12,<3.14"
 dependencies = [

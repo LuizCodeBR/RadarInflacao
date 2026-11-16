@@ -41,9 +41,12 @@ def migrate(db):
 def rows(db):
     values = db.execute("""
         SELECT strftime(o.period,'%Y-%m'),o.area_key,d.name,o.monthly,o.year_to_date,
-               o.twelve_month,i.mode,i.retrieved_at,i.source_url,i.raw_sha256,o.run_id
-        FROM area_observation o JOIN area_dimension d USING(area_key)
-        JOIN area_ingestion i ON i.id=o.run_id ORDER BY o.period,o.area_key
+               o.twelve_month,i.mode,i.retrieved_at,i.source_url,i.raw_sha256,o.run_id,
+               day(o.period),i.status,
+               strftime(i.finished_at,'%Y-%m-%dT%H:%M:%S.%f+00:00'),
+               i.start_month,i.end_month
+        FROM area_observation o LEFT JOIN area_dimension d USING(area_key)
+        LEFT JOIN area_ingestion i ON i.id=o.run_id ORDER BY o.period,o.area_key
     """).fetchall()
     names = (
         "period",
@@ -57,6 +60,11 @@ def rows(db):
         "source_url",
         "raw_sha256",
         "run_id",
+        "period_day",
+        "run_status",
+        "run_finished_at",
+        "run_start",
+        "run_end",
     )
     return [dict(zip(names, row, strict=True)) for row in values]
 
