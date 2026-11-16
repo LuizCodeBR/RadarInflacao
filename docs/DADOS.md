@@ -41,3 +41,12 @@ Metodologia de composição: [Banco Central, índices de preços](https://www4.b
 A diferença é taxa A menos taxa B, em pontos percentuais, antes do arredondamento da tela. Uma inflação positiva menor significa aumento mais lento do nível de preços, sem implicar queda de preços. A cobertura nacional não descreve a cesta individual de uma pessoa.
 
 Veja [comparações e exemplos](COMPARACOES.md) para as janelas automáticas, avisos e exportação.
+
+
+## Segunda tabela: grupos do IPCA
+
+Na versão 0.3.0, tabela 7060 com Brasil/N1/1, classificação 315 e nove grupos fixos de nível 1. Variáveis 63/69/2265/66, unidade %. sample/groups guarda 738 registros (82 meses), com manifesto e hashes independentes da amostra nacional.
+
+Os 99 campos ausentes são exclusivamente os acumulados em 12 meses dos nove grupos de janeiro a novembro/2020. Preservados como NULL; CSV vazio, tela Não disponível. Ausência fora dessa regra é erro. A API pode retornar unidade vazia no corpo da variável 2265 nesse intervalo; metadados % e a janela histórica são conferidos.
+
+Pesos são validados entre 0 e 100, soma por mês com tolerância de 0,05 p.p. Os rankings são de variação, sem confundir taxa com contribuição. Consulte [grupos e interpretação](GRUPOS.md).

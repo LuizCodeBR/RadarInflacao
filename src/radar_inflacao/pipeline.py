@@ -27,20 +27,19 @@ class Batch:
     end: str
 
 
-def sample_batch(directory: Path) -> Batch:
+def sample_batch(directory: Path, api: str = METADATA_URL.rsplit("/", 1)[0]) -> Batch:
     try:
         manifest = json.loads((directory / "manifest.json").read_text(encoding="utf-8-sig"))
-        raw = (directory / "ibge-1737.json").read_bytes()
-        metadata = (directory / "metadata-1737.json").read_bytes()
+        table = api.rsplit("/", 1)[-1]
+        raw = (directory / f"ibge-{table}.json").read_bytes()
+        metadata = (directory / f"metadata-{table}.json").read_bytes()
         if (
             hashlib.sha256(raw).hexdigest() != manifest["sha256"]
             or hashlib.sha256(metadata).hexdigest() != manifest["metadata_sha256"]
         ):
             raise ValidationError("A integridade da amostra divergiu. Baixe o pacote novamente.")
         timestamp = datetime.fromisoformat(manifest["retrieved_at"])
-        if timestamp.tzinfo is None or not manifest["data_url"].startswith(
-            METADATA_URL.rsplit("/", 1)[0] + "/periodos/"
-        ):
+        if timestamp.tzinfo is None or not manifest["data_url"].startswith(api + "/periodos/"):
             raise ValueError("Origem inválida")
         return Batch(
             raw,
@@ -81,10 +80,16 @@ def archive(directory: Path, raw: bytes, suffix: str) -> tuple[str, str]:
 
 
 class Pipeline:
+    grouped = False
+    run_table = "ingestion"
+    metadata_validator = staticmethod(validate_metadata)
+    parser = staticmethod(parse_observations)
+    source_type = IbgeSource
+
     def __init__(self, repository: Repository, sample_directory: Path, source=None):
         self.repository = repository
         self.sample_directory = sample_directory
-        self.source = source or IbgeSource()
+        self.source = source or self.source_type()
 
     def demo(self) -> dict:
         return self._run("sample")
@@ -92,29 +97,34 @@ class Pipeline:
     def update(self, *, full: bool = False) -> dict:
         return self._run("live", full=full)
 
+    def current_rows(self, db):
+        return self.repository.group_rows(db) if self.grouped else self.repository.rows(db)
+
     def ensure_demo(self):
-        if not self.repository.snapshot()["rows"]:
+        with self.repository.locked() as db:
+            empty = not self.current_rows(db)
+        if empty:
             self.demo()
 
     def _run(self, mode: str, *, full: bool = False) -> dict:
         with self.repository.locked() as db:
-            current = self.repository.rows(db)
+            current = self.current_rows(db)
             if mode == "sample" and any(row["mode"] == "live" for row in current):
                 raise ValidationError(
                     "A amostra não substitui dados consultados. Use outra pasta de dados."
                 )
             run_id = str(uuid.uuid4())
             db.execute(
-                "INSERT INTO ingestion(id,started_at,mode,status) VALUES(?,?,?,'RUNNING')",
+                f"INSERT INTO {self.run_table}(id,started_at,mode,status) VALUES(?,?,?,'RUNNING')",
                 [run_id, utc_now(), mode],
             )
             transaction = False
             try:
                 if mode == "sample":
-                    batch = sample_batch(self.sample_directory)
+                    batch = sample_batch(self.sample_directory, self.source_type.api)
                 else:
                     metadata = self.source.metadata()
-                    end = validate_metadata(metadata.raw)
+                    end = self.metadata_validator(metadata.raw)
                     if current and end < current[-1]["period"]:
                         raise ValidationError(
                             "A origem está menos recente que a base. Dados preservados."
@@ -128,20 +138,24 @@ class Pipeline:
                     batch = Batch(
                         download.raw, metadata.raw, utc_now().isoformat(), download.url, start, end
                     )
-                declared_end = validate_metadata(batch.metadata)
+                declared_end = self.metadata_validator(batch.metadata)
                 if batch.end > declared_end:
                     raise ValidationError("O período excede a disponibilidade declarada pelo IBGE.")
-                rows = parse_observations(batch.raw, periods(batch.start, batch.end))
+                rows = self.parser(batch.raw, periods(batch.start, batch.end))
                 raw_sha, raw_file = archive(self.repository.directory, batch.raw, ".json")
                 metadata_sha, _ = archive(
                     self.repository.directory, batch.metadata, ".metadata.json"
                 )
                 db.execute("BEGIN TRANSACTION")
                 transaction = True
-                counts = self.repository.upsert(db, rows, run_id)
+                counts = (
+                    self.repository.upsert_groups(db, rows, run_id)
+                    if self.grouped
+                    else self.repository.upsert(db, rows, run_id)
+                )
                 db.execute(
-                    """
-                  UPDATE ingestion SET finished_at=?,retrieved_at=?,source_url=?,
+                    f"""
+                  UPDATE {self.run_table} SET finished_at=?,retrieved_at=?,source_url=?,
                     raw_sha256=?,metadata_sha256=?,raw_file=?,start_month=?,end_month=?,
                     status='SUCCESS',inserted=?,updated=?,unchanged=? WHERE id=?
                 """,
@@ -181,9 +195,20 @@ class Pipeline:
                     else "Falha interna ao publicar a coleta."
                 )
                 db.execute(
-                    "UPDATE ingestion SET status='FAILED',finished_at=?,error=? WHERE id=?",
+                    f"UPDATE {self.run_table} SET status='FAILED',finished_at=?,error=? WHERE id=?",
                     [utc_now(), detail[:500], run_id],
                 )
                 if isinstance(exc, RadarError):
                     raise
                 raise RadarError("A coleta falhou. A última base válida foi preservada.") from exc
+
+
+class GroupPipeline(Pipeline):
+    from .groups import parse_group_observations, validate_group_metadata
+    from .source import GroupSource
+
+    grouped = True
+    run_table = "group_ingestion"
+    metadata_validator = staticmethod(validate_group_metadata)
+    parser = staticmethod(parse_group_observations)
+    source_type = GroupSource

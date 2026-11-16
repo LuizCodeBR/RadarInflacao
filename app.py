@@ -14,9 +14,11 @@ from radar_inflacao.analysis import (
     format_rate,
     reference_period,
 )
-from radar_inflacao.cli import components
+from radar_inflacao.cli import components, project_root
 from radar_inflacao.errors import RadarError
+from radar_inflacao.group_view import render_groups
 from radar_inflacao.model import BASE_MONTH, next_month
+from radar_inflacao.pipeline import GroupPipeline
 from radar_inflacao.report import comparison_csv_bytes, csv_bytes
 
 st.set_page_config(page_title="Radar da Inflação", page_icon="📊", layout="wide")
@@ -27,41 +29,51 @@ st.markdown(
     "A coleta acontece somente quando você solicita."
 )
 
+view = st.radio("Análise", ["Índice geral", "Grupos de despesas"], horizontal=True, key="view")
 repository, pipeline = components()
+group_pipeline = GroupPipeline(repository, project_root() / "sample/groups")
 try:
     pipeline.ensure_demo()
-    snapshot = repository.snapshot()
+    group_pipeline.ensure_demo()
+    snapshot = repository.snapshot(include_groups=True)
 except RadarError as error:
     st.error(str(error))
     st.stop()
 
 with st.sidebar:
     st.header("Dados e atualização")
-    st.markdown("**Fonte:** IBGE / SIDRA · tabela 1737 · Brasil")
+    st.markdown("**Fonte:** IBGE / SIDRA · tabelas 1737 e 7060 · Brasil")
     st.link_button("Consultar a fonte", "https://sidra.ibge.gov.br/tabela/1737")
     st.caption("Atualização padrão: revisita 24 meses e busca meses novos.")
     full = st.checkbox("Reconferir toda a série desde 2020", key="full_refresh")
     if st.button("Atualizar pelo IBGE", type="primary", key="update"):
-        try:
-            with st.spinner("Consultando e validando o IBGE…"):
-                result = pipeline.update(full=full)
-            st.session_state["notice"] = (
-                f"Coleta concluída: {result['inserted']} meses novos, "
-                f"{result['updated']} corrigidos e {result['unchanged']} sem alteração."
-            )
-            st.rerun()
-        except RadarError as error:
-            st.error(str(error))
-            st.info("A última base válida continua disponível.")
-            try:
-                snapshot = repository.snapshot()
-            except RadarError:
-                pass
+        completed, errors = [], []
+        with st.spinner("Consultando e validando o IBGE…"):
+            for label, worker in [("Índice geral", pipeline), ("Grupos", group_pipeline)]:
+                try:
+                    result = worker.update(full=full)
+                    completed.append(
+                        f"{label}: {result['inserted']} novos, {result['updated']} corrigidos, "
+                        f"{result['unchanged']} sem alteração."
+                    )
+                except RadarError as error:
+                    errors.append(f"{label}: {error}")
+        st.session_state["notice"] = " ".join(completed)
+        st.session_state["update_errors"] = errors
+        st.rerun()
     st.divider()
     st.caption("Uso local, sem conta e sem serviço pago. Não há atualização agendada.")
 
 if notice := st.session_state.pop("notice", None):
     st.success(notice)
+
+for error in st.session_state.pop("update_errors", []):
+    st.error(error)
+    st.info("A última base válida desse conjunto continua disponível.")
+if view == "Grupos de despesas":
+    render_groups(snapshot["groups"], snapshot["groups_history"])
+    st.caption(f"Radar da Inflação {__version__} · Dados nacionais, sem inflação pessoal.")
+    st.stop()
 
 rows = snapshot["rows"]
 if not rows:
@@ -139,7 +151,9 @@ comparison_labels = {
     "custom": "Escolher outro período",
 }
 mode = st.selectbox(
-    "Comparar com", list(comparison_labels), format_func=comparison_labels.get,
+    "Comparar com",
+    list(comparison_labels),
+    format_func=comparison_labels.get,
     key="comparison_mode",
 )
 if mode == "custom":
@@ -149,12 +163,16 @@ if mode == "custom":
     left_b, right_b = st.columns(2)
     with left_b:
         start_b = st.selectbox(
-            "Mês inicial do período B", available, index=available.index(default_start),
+            "Mês inicial do período B",
+            available,
+            index=available.index(default_start),
             key="compare_start",
         )
     with right_b:
         end_b = st.selectbox(
-            "Mês final do período B", available, index=available.index(default_end),
+            "Mês final do período B",
+            available,
+            index=available.index(default_end),
             key="compare_end",
         )
 else:
@@ -187,7 +205,8 @@ else:
     metric_a.metric("Estimativa do período A", format_rate(comparison.a.compounded))
     metric_b.metric("Estimativa do período B", format_rate(comparison.b.compounded))
     metric_difference.metric(
-        "Diferença A − B", format_points(comparison.measures[0].difference),
+        "Diferença A − B",
+        format_points(comparison.measures[0].difference),
         help="Diferença em pontos percentuais, calculada antes do arredondamento.",
     )
     st.caption(
@@ -210,9 +229,12 @@ else:
         "a tela mostra duas casas. Consulte a tabela no computador ou role-a no celular."
     )
     st.download_button(
-        "Baixar CSV da comparação", comparison_csv_bytes(comparison),
+        "Baixar CSV da comparação",
+        comparison_csv_bytes(comparison),
         file_name=f"comparacao-{start}-{end}-vs-{start_b}-{end_b}.csv",
-        mime="text/csv", key="comparison_csv", on_click="ignore",
+        mime="text/csv",
+        key="comparison_csv",
+        on_click="ignore",
     )
 
 chart = pd.DataFrame(
@@ -234,9 +256,12 @@ except RadarError as error:
     st.error(f"Exportação indisponível: {error}")
 else:
     st.download_button(
-        "Baixar CSV do período", monthly_csv,
+        "Baixar CSV do período",
+        monthly_csv,
         file_name=f"radar-inflacao-{start}-a-{end}.csv",
-        mime="text/csv", key="csv", on_click="ignore",
+        mime="text/csv",
+        key="csv",
+        on_click="ignore",
     )
 
 with st.expander("Tabela, origem e qualidade", expanded=True):

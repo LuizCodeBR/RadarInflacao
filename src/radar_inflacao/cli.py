@@ -8,9 +8,10 @@ import os
 from pathlib import Path
 
 from .errors import RadarError
+from .groups import GROUPS, filter_group_rows
 from .model import month
-from .pipeline import Pipeline
-from .report import csv_bytes, publish_csv
+from .pipeline import GroupPipeline, Pipeline
+from .report import csv_bytes, group_csv_bytes, publish_csv
 from .storage import Repository
 
 
@@ -40,27 +41,58 @@ def main(argv=None) -> int:
         "--data-dir", type=Path, help="Pasta independente para banco, brutos e histórico"
     )
     sub = parser.add_subparsers(dest="command", required=True)
-    sub.add_parser("demo", help="Importa a amostra local validada, sem internet")
+    demo = sub.add_parser("demo", help="Importa as amostras locais validadas, sem internet")
+    demo.add_argument("--dataset", choices=["all", "national", "groups"], default="all")
     update = sub.add_parser("update", help="Consulta o IBGE sob demanda")
+    update.add_argument("--dataset", choices=["all", "national", "groups"], default="all")
     update.add_argument(
         "--full", action="store_true", help="Reconcilia desde 2020, incluindo revisões antigas"
     )
     sub.add_parser("status", help="Mostra cobertura e última execução")
     export = sub.add_parser("export", help="Exporta a base sem substituir arquivo existente")
+    export.add_argument("--dataset", choices=["national", "groups"], default="national")
+    export.add_argument("--groups", nargs="+", choices=list(GROUPS), default=list(GROUPS))
     export.add_argument("--from", dest="start", type=month_argument)
     export.add_argument("--to", dest="end", type=month_argument)
     export.add_argument("--output", type=Path, required=True)
     args = parser.parse_args(argv)
     try:
         repository, pipeline = components(args.data_dir)
-        if args.command == "demo":
-            result = pipeline.demo()
-        elif args.command == "update":
-            result = pipeline.update(full=args.full)
+        if args.command in ("demo", "update"):
+            group_pipeline = GroupPipeline(repository, project_root() / "sample/groups")
+            workers = (
+                [("national", pipeline), ("groups", group_pipeline)]
+                if args.dataset == "all"
+                else [(args.dataset, pipeline if args.dataset == "national" else group_pipeline)]
+            )
+            results, failures = {}, {}
+            for label, worker in workers:
+                try:
+                    results[label] = (
+                        worker.demo() if args.command == "demo" else worker.update(full=args.full)
+                    )
+                except RadarError as error:
+                    failures[label] = str(error)
+            if failures:
+                print(
+                    json.dumps(
+                        {
+                            "status": "PARTIAL" if results else "ERROR",
+                            "completed": results,
+                            "errors": failures,
+                        },
+                        ensure_ascii=False,
+                    )
+                )
+                return 2
+            result = results.get("national", results.get("groups"))
+            if args.dataset == "all":
+                result = {**result, "groups": results["groups"]}
         elif args.command == "status":
-            snapshot = repository.snapshot()
+            snapshot = repository.snapshot(include_groups=True)
             rows = snapshot["rows"]
             result = {
+                "groups_rows": len(snapshot["groups"]),
                 "rows": len(rows),
                 "from": rows[0]["period"] if rows else None,
                 "to": rows[-1]["period"] if rows else None,
@@ -69,10 +101,21 @@ def main(argv=None) -> int:
             }
         else:
             with repository.locked() as db:
-                rows = repository.rows(db, args.start, args.end)
+                rows = (
+                    repository.group_rows(db, args.start, args.end)
+                    if args.dataset == "groups"
+                    else repository.rows(db, args.start, args.end)
+                )
+            if args.dataset == "groups" and rows:
+                rows = filter_group_rows(
+                    rows,
+                    args.groups,
+                    args.start or rows[0]["period"],
+                    args.end or rows[-1]["period"],
+                )
             if not rows:
                 raise RadarError("Nenhum mês encontrado para exportar.")
-            data = csv_bytes(rows)
+            data = group_csv_bytes(rows) if args.dataset == "groups" else csv_bytes(rows)
             try:
                 publish_csv(args.output, data)
             except FileExistsError as exc:

@@ -37,3 +37,12 @@ Banco, respostas brutas e histórico ficam juntos. Com o aplicativo encerrado, p
 Use Python 3.12/3.13, venv e pip. Execute bash iniciar.sh ou bash testar.sh. RADAR_PYTHON seleciona o executável quando python3 não for a versão desejada. Caminhos e caches ficam na pasta do projeto.
 
 Esses iniciadores têm sintaxe conferida; a execução nativa Linux/macOS depende da validação no respectivo ambiente. O workflow de CI está preparado no repositório local, sem alegação de execução remota nesta entrega.
+
+
+## Atualização para 0.3.0
+
+Mesmas dependências. O painel oferece Índice geral e Grupos de despesas. A pasta sample/groups acompanha o ZIP e permite testar a nova área offline após preparar o ambiente.
+
+O banco migra do esquema 1 para 2 na primeira abertura, preservando as observações e o histórico nacionais. Não execute a versão antiga contra um banco já migrado. Antes de substituir uma instalação própria, com o aplicativo encerrado, preserve a pasta data para manter uma cópia compatível com a versão anterior.
+
+atualizar.cmd atualiza os dois conjuntos; falhas são informadas separadamente. A CLI permite update --dataset groups ou --dataset national. Veja [guia dos grupos](GRUPOS.md).

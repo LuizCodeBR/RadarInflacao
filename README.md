@@ -2,7 +2,7 @@
 
 Pipeline de dados públicos do **IPCA nacional**, com Python, SQL/DuckDB e painel Streamlit. Coleta dados do IBGE, valida o contrato da fonte, preserva a última base válida e registra origem, hash e resultado de cada execução.
 
-**Versão 0.2.1 · execução local · sem conta, chave de API ou recurso pago.**
+**Versão 0.3.0 · execução local · sem conta, chave de API ou recurso pago.**
 
 ![Painel do Radar da Inflação](docs/imagens/painel-desktop.png)
 
@@ -49,6 +49,9 @@ O iniciador prepara o ambiente e abre o mesmo painel local. A validação realiz
 - Comparação com período anterior de mesma duração, mesmo período do ano anterior ou intervalo manual.
 - Acumulado estimado por composição, diferenças em pontos percentuais e CSV da comparação.
 - Explicações contextualizadas e avisos de cobertura, durações diferentes e sobreposição.
+- Análise dos nove grupos: evolução, ranking mensal, peso, comparação A/B e três CSVs.
+- Amostra dos grupos com 738 registros (82 meses × nove grupos) e ausência histórica identificada.
+- Migração automática do banco do esquema 1 para 2, preservando o índice geral.
 - CSV UTF-8 com BOM, ponto e vírgula e vírgula decimal.
 - Atualização sob demanda pela API do IBGE.
 - Reconsulta dos últimos 24 meses existentes e busca de meses novos, sem duplicação.
@@ -104,6 +107,18 @@ Os acumulados são os divulgados pelo IBGE; não são calculados somando taxas m
 
 A [amostra](sample/manifest.json) registra URL, momento da obtenção e hashes dos dados/metadados. Os números do período continuam sendo os publicados pela fonte; não se trata de uma previsão ou medição de preços de produtos.
 
+## Explorar os nove grupos
+
+Em Análise, escolha Grupos de despesas. Selecione as categorias e o período A, consulte evolução e ranking mensal e escolha B para comparar. Há CSV do período, do ranking e da comparação. O ranking é de taxas; o peso é uma medida diferente da contribuição ao índice.
+
+Fonte: tabela 7060, Brasil, desde 2020. A amostra inclui 82 meses e quatro medidas por grupo. Os acumulados de 12 meses de janeiro a novembro/2020 não estão disponíveis nessa tabela: aparecem identificados e ficam vazios no CSV, sem virar zero.
+
+Atualizar pelo IBGE e atualizar.cmd atendem ao índice geral e aos grupos. Cada conjunto tem histórico e publicação próprios; eventual sucesso parcial é informado. A migração para esquema 2 preserva os dados nacionais; o código antigo não abre esse esquema.
+
+[Guia dos grupos, dados, CSV e migração](docs/GRUPOS.md) · [Validação 0.3.0](docs/VALIDACAO-0.3.0.md).
+
+![Grupos do IPCA](docs/imagens/grupos-desktop.png)
+
 ## Comparar períodos e entender os indicadores
 
 1. Escolha os meses inicial e final: eles definem o período A.
@@ -129,7 +144,7 @@ A publicação pela CLI requer suporte a hard links no volume de destino (valida
 
 ~~~mermaid
 flowchart LR
-    IBGE[API IBGE / tabela 1737] --> COLETA[Cliente HTTP]
+    IBGE[API IBGE / tabelas 1737 e 7060] --> COLETA[Cliente HTTP]
     AMOSTRA[Amostra local identificada] --> VALIDACAO[Validação]
     COLETA --> VALIDACAO
     VALIDACAO --> RAW[Arquivos brutos / SHA-256]
@@ -140,7 +155,7 @@ flowchart LR
     DB --> CSV[CSV / procedência]
 ~~~
 
-[Arquitetura e decisões](docs/ARQUITETURA.md) · [Revisão e testes atuais](docs/REVISAO-0.2.1.md) · [Instalação e uso](docs/INSTALACAO.md) · [Dados e limites](docs/DADOS.md).
+[Arquitetura e decisões](docs/ARQUITETURA.md) · [Testes atuais](docs/VALIDACAO-0.3.0.md) · [Instalação e uso](docs/INSTALACAO.md) · [Dados e limites](docs/DADOS.md).
 
 ## Pastas e armazenamento
 
@@ -156,7 +171,7 @@ Os iniciadores mantêm ambiente, caches e temporários dentro da pasta do projet
 
 ## Limites da versão atual
 
-Série nacional desde 2020, fonte única e arquivo local. Atualizações e leituras da aplicação usam o mesmo bloqueio; outra operação em andamento pode pedir nova tentativa. Não é um servidor analítico para vários usuários ou gravação distribuída.
+Séries nacionais desde 2020, tabelas 1737/7060 do IBGE e arquivo local. Atualizações e leituras da aplicação usam o mesmo bloqueio; outra operação em andamento pode pedir nova tentativa. Não é um servidor analítico para vários usuários ou gravação distribuída.
 
 O projeto oferece painel web local responsivo; não publica link externo ou aplicativo nativo nesta entrega. Falhas ficam no histórico, e uma interrupção é sinalizada na próxima abertura. Arquivos brutos não substituem um backup da pasta de dados. Não há tarefa agendada ou serviço pago.
 

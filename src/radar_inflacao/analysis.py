@@ -44,15 +44,15 @@ class PeriodSummary:
     compounded: Decimal
     monthly: Decimal
     year_to_date: Decimal
-    twelve_month: Decimal
+    twelve_month: Decimal | None
 
 
 @dataclass(frozen=True)
 class ComparisonMeasure:
     label: str
-    a: Decimal
-    b: Decimal
-    difference: Decimal
+    a: Decimal | None
+    b: Decimal | None
+    difference: Decimal | None
     method: str
 
 
@@ -83,8 +83,14 @@ def reference_period(start: str, end: str, mode: str) -> tuple[str, str]:
 
 def _context(precision: int) -> Context:
     return Context(
-        prec=precision, rounding=ROUND_HALF_UP, Emin=-999999, Emax=999999,
-        capitals=1, clamp=0, flags=[], traps=[InvalidOperation, DivisionByZero, Overflow],
+        prec=precision,
+        rounding=ROUND_HALF_UP,
+        Emin=-999999,
+        Emax=999999,
+        capitals=1,
+        clamp=0,
+        flags=[],
+        traps=[InvalidOperation, DivisionByZero, Overflow],
     )
 
 
@@ -100,7 +106,9 @@ def validated_rate(value: Decimal) -> Decimal:
     return value
 
 
-def summarize_period(rows: list[dict], start: str, end: str) -> PeriodSummary:
+def summarize_period(
+    rows: list[dict], start: str, end: str, *, allow_missing_12: bool = False
+) -> PeriodSummary:
     expected = periods(start, end)
     selected = sorted(
         (row for row in rows if start <= month(row.get("period")) <= end),
@@ -119,16 +127,33 @@ def summarize_period(rows: list[dict], start: str, end: str) -> PeriodSummary:
         compounded = (factor - Decimal(1)) * Decimal(100)
     last = selected[-1]
     return PeriodSummary(
-        start, end, len(expected), compounded,
-        *(validated_rate(last.get(key)) for _, key, _ in INDICATORS),
+        start,
+        end,
+        len(expected),
+        compounded,
+        *(
+            None
+            if allow_missing_12
+            and key == "twelve_month"
+            and "2020-01" <= last["period"] < "2020-12"
+            and last.get(key) is None
+            else validated_rate(last.get(key))
+            for _, key, _ in INDICATORS
+        ),
     )
 
 
 def compare_periods(
-    rows: list[dict], start_a: str, end_a: str, start_b: str, end_b: str
+    rows: list[dict],
+    start_a: str,
+    end_a: str,
+    start_b: str,
+    end_b: str,
+    *,
+    allow_missing_12: bool = False,
 ) -> PeriodComparison:
-    a = summarize_period(rows, start_a, end_a)
-    b = summarize_period(rows, start_b, end_b)
+    a = summarize_period(rows, start_a, end_a, allow_missing_12=allow_missing_12)
+    b = summarize_period(rows, start_b, end_b, allow_missing_12=allow_missing_12)
     definitions = [
         (ESTIMATED_LABEL, "compounded", "Composição das taxas mensais publicadas (estimativa)"),
         *(
@@ -138,8 +163,15 @@ def compare_periods(
     ]
     with localcontext(_context(max(a.count, b.count) * 16 + 32)):
         measures = tuple(
-            ComparisonMeasure(label, getattr(a, key), getattr(b, key),
-                              getattr(a, key) - getattr(b, key), method)
+            ComparisonMeasure(
+                label,
+                getattr(a, key),
+                getattr(b, key),
+                getattr(a, key) - getattr(b, key)
+                if getattr(a, key) is not None and getattr(b, key) is not None
+                else None,
+                method,
+            )
             for label, key, method in definitions
         )
     return PeriodComparison(a, b, measures)

@@ -1,4 +1,4 @@
-# Arquitetura — Radar da Inflação 0.2.1
+# Arquitetura — Radar da Inflação 0.3.0
 
 ## Escopo e escolhas
 
@@ -6,6 +6,8 @@ Uma aplicação Python com módulos por responsabilidade. Interface, CLI e teste
 
 | Módulo | Responsabilidade |
 | --- | --- |
+| groups.py | Categorias, contrato 7060, filtros, ranking e comparações por grupo |
+| group_view.py | Painel dos grupos, gráficos Altair e downloads |
 | model.py | Meses, números decimais, JSON sem chaves duplicadas e contrato do IBGE |
 | source.py | Origem HTTPS fixa, timeouts, limite de tamanho e retentativas limitadas |
 | pipeline.py | Amostra/coleta, validação integral, arquivo bruto e publicação transacional |
@@ -28,7 +30,7 @@ Uma aplicação Python com módulos por responsabilidade. Interface, CLI e teste
 
 ## Persistência e concorrência
 
-observation tem uma linha por mês, três DECIMAL(14,6) e vínculo à última coleta que conferiu o mês. ingestion guarda modo, origem, período, hashes, situação e contagens de novos/corrigidos/sem alteração. schema_version=1 recusa versão desconhecida.
+observation tem uma linha por mês, três DECIMAL(14,6) e vínculo à última coleta que conferiu o mês. ingestion guarda modo, origem, período, hashes, situação e contagens de novos/corrigidos/sem alteração. schema_version=2 recusa versão desconhecida e migra a versão 1 por transação.
 
 FileLock usa bloqueio entre processos; a aplicação mantém o lock durante a operação e fecha a conexão depois. Isso também coordena consultas da interface/CLI e atualizações. Custo: durante coleta, uma consulta concorrente pode ser recusada para nova tentativa. Esta arquitetura é local, em um computador e disco convencional; não declara suporte a pasta sincronizada, compartilhamento de rede ou múltiplos servidores.
 
@@ -82,3 +84,18 @@ Na CLI, csv_bytes() termina antes de criar o temporário; publish_csv() grava no
 Os downloads usam bytes preparados com o snapshot exibido e on_click="ignore", sem nova leitura só por baixar. As comparações continuam locais a cada execução e não compartilham cache mutável entre sessões. Atualizar a página ou alterar um filtro produz uma nova consulta.
 
 Veja [achados e evidências](REVISAO-0.2.1.md).
+
+
+## Grupos na versão 0.3.0
+
+groups.py define nove categorias fixas, valida a tabela 7060 e implementa filtros/ranking/comparações. group_view.py apresenta a nova área do painel. GroupSource herda limites de rede do cliente nacional e permite somente a origem fixa 7060; o cliente nacional mantém a origem 1737.
+
+GroupPipeline especializa o mesmo algoritmo de coleta, transação, arquivo bruto e histórico: fornece parser, metadados, fonte e tabela de execução próprios. Os nomes das tabelas são constantes de código; os valores das consultas são parametrizados.
+
+A migração 1→2 cria dimensão de grupos, histórico e observações com chave mês/grupo. Não altera os dados nacionais. O peso é decimal; 12 meses permite NULL na janela histórica validada. Falha de migração desfaz a transação; versões desconhecidas continuam recusadas.
+
+snapshot(include_groups=True) lê ambos os conjuntos e seus históricos sob o mesmo lock. Os filtros operam nesse snapshot. Não há cache compartilhado mutável. Cada coleta publica um conjunto; atualizar os dois pode resultar em sucesso parcial, informado ao usuário.
+
+Apenas as ausências de 12 meses de janeiro–novembro/2020 são aceitas para os grupos. O cálculo compartilhado recebe permissão explícita para essa janela; a validação nacional continua recusando ausência. Campos ausentes são exibidos como Não disponível e exportados vazios.
+
+Veja [guia dos grupos](GRUPOS.md) e [testes 0.3.0](VALIDACAO-0.3.0.md).

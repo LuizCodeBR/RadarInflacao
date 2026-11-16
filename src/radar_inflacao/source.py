@@ -26,6 +26,8 @@ class Download:
 
 
 class IbgeSource:
+    api = API
+
     def __init__(self, client: httpx.Client | None = None, sleeper=time.sleep):
         self.client = client
         self.sleeper = sleeper
@@ -57,7 +59,7 @@ class IbgeSource:
         raise SourceError("Não foi possível concluir a consulta ao IBGE.")
 
     def fetch(self, url: str) -> Download:
-        if not url.startswith(API + "/"):
+        if not url.startswith(self.api + "/"):
             raise SourceError("Origem de coleta não autorizada.")
         if self.client is not None:
             return self._download(self.client, url)
@@ -65,7 +67,28 @@ class IbgeSource:
             return self._download(client, url)
 
     def metadata(self) -> Download:
-        return self.fetch(METADATA_URL)
+        return self.fetch(self.api + "/metadados")
 
     def observations(self, start: str, end: str) -> Download:
         return self.fetch(data_url(start, end))
+
+
+GROUP_API = "https://servicodados.ibge.gov.br/api/v3/agregados/7060"
+
+
+def group_data_url(start: str, end: str) -> str:
+    from .groups import GROUPS
+
+    sequence = "|".join(m.replace("-", "") for m in periods(start, end))
+    codes = ",".join(GROUPS)
+    return (
+        f"{GROUP_API}/periodos/{sequence}/variaveis/63|69|2265|66"
+        f"?localidades=N1[all]&classificacao=315[{codes}]"
+    )
+
+
+class GroupSource(IbgeSource):
+    api = GROUP_API
+
+    def observations(self, start: str, end: str) -> Download:
+        return self.fetch(group_data_url(start, end))

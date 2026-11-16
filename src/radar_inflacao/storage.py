@@ -44,7 +44,7 @@ class Repository:
         row = db.execute("SELECT version FROM schema_version").fetchall()
         if not row:
             db.execute("INSERT INTO schema_version VALUES (1)")
-        elif row != [(1,)]:
+        elif row not in ([(1,)], [(2,)]):
             raise ValidationError(
                 "Esquema de banco incompatível. Preserve a base e use versão compatível."
             )
@@ -65,6 +65,13 @@ class Repository:
             run_id VARCHAR NOT NULL REFERENCES ingestion(id)
           )
         """)
+
+        if row != [(2,)]:
+            Repository._migrate_groups(db)
+        db.execute(
+            """UPDATE group_ingestion SET status='INTERRUPTED', finished_at=current_timestamp,
+                 error='Execução interrompida antes da conclusão.' WHERE status='RUNNING'"""
+        )
 
         db.execute(
             """UPDATE ingestion SET status='INTERRUPTED', finished_at=current_timestamp,
@@ -102,7 +109,7 @@ class Repository:
         )
         return [dict(zip(names, row, strict=True)) for row in rows]
 
-    def snapshot(self) -> dict:
+    def snapshot(self, *, include_groups: bool = False) -> dict:
         with self.locked() as db:
             rows = self.rows(db)
             history = db.execute("""
@@ -110,7 +117,15 @@ class Repository:
                      inserted, updated, unchanged, error
               FROM ingestion ORDER BY started_at DESC, id DESC LIMIT 20
             """).fetchall()
-            return {"rows": rows, "history": history}
+            result = {"rows": rows, "history": history}
+            if include_groups:
+                result["groups"] = self.group_rows(db)
+                result["groups_history"] = db.execute("""
+                    SELECT id, cast(started_at as VARCHAR), cast(finished_at as VARCHAR), mode,
+                           status, inserted, updated, unchanged, error
+                    FROM group_ingestion ORDER BY started_at DESC, id DESC LIMIT 20
+                """).fetchall()
+            return result
 
     @staticmethod
     def upsert(db, rows: list[Observation], run_id: str) -> tuple[int, int, int]:
@@ -135,6 +150,105 @@ class Repository:
                 run_id=excluded.run_id
             """,
                 [as_date(row.period), *values, run_id],
+            )
+        return inserted, updated, unchanged
+
+    @staticmethod
+    def _migrate_groups(db):
+        from .groups import GROUPS
+
+        db.execute("BEGIN TRANSACTION")
+        try:
+            db.execute("""
+                CREATE TABLE group_dimension(id VARCHAR PRIMARY KEY, name VARCHAR NOT NULL)
+            """)
+            db.executemany("INSERT INTO group_dimension VALUES (?,?)", list(GROUPS.items()))
+            db.execute("""
+                CREATE TABLE group_ingestion(
+                    id VARCHAR PRIMARY KEY, started_at TIMESTAMPTZ, finished_at TIMESTAMPTZ,
+                    mode VARCHAR, retrieved_at VARCHAR, source_url VARCHAR,
+                    raw_sha256 VARCHAR, metadata_sha256 VARCHAR, raw_file VARCHAR,
+                    start_month VARCHAR, end_month VARCHAR, status VARCHAR,
+                    inserted INTEGER DEFAULT 0, updated INTEGER DEFAULT 0,
+                    unchanged INTEGER DEFAULT 0, error VARCHAR DEFAULT ''
+                )
+            """)
+            db.execute("""
+                CREATE TABLE group_observation(
+                    period DATE, group_id VARCHAR REFERENCES group_dimension(id),
+                    monthly DECIMAL(14,6) NOT NULL, year_to_date DECIMAL(14,6) NOT NULL,
+                    twelve_month DECIMAL(14,6), weight DECIMAL(14,6) NOT NULL,
+                    run_id VARCHAR NOT NULL REFERENCES group_ingestion(id),
+                    PRIMARY KEY(period, group_id)
+                )
+            """)
+            db.execute("UPDATE schema_version SET version=2")
+            db.execute("COMMIT")
+        except Exception:
+            db.execute("ROLLBACK")
+            raise
+
+    @staticmethod
+    def group_rows(db, start=None, end=None) -> list[dict]:
+        if start is not None:
+            month(start)
+        if end is not None:
+            month(end)
+        if start and end and start > end:
+            raise ValidationError("O mês inicial precisa ser anterior ou igual ao final.")
+        rows = db.execute(
+            """
+            SELECT strftime(o.period,'%Y-%m'), o.monthly, o.year_to_date, o.twelve_month,
+                   i.mode, i.retrieved_at, i.source_url, i.raw_sha256, o.run_id,
+                   o.group_id, g.name, o.weight
+            FROM group_observation o
+            JOIN group_ingestion i ON i.id=o.run_id JOIN group_dimension g ON g.id=o.group_id
+            WHERE (? IS NULL OR o.period>=?) AND (? IS NULL OR o.period<=?)
+            ORDER BY o.period, o.group_id
+        """,
+            [start, as_date(start) if start else None, end, as_date(end) if end else None],
+        ).fetchall()
+        names = (
+            "period",
+            "monthly",
+            "year_to_date",
+            "twelve_month",
+            "mode",
+            "retrieved_at",
+            "source_url",
+            "raw_sha256",
+            "run_id",
+            "group_id",
+            "group_name",
+            "weight",
+        )
+        return [dict(zip(names, row, strict=True)) for row in rows]
+
+    @staticmethod
+    def upsert_groups(db, rows, run_id):
+        inserted = updated = unchanged = 0
+        for row in rows:
+            key = [as_date(row.period), row.group_id]
+            current = db.execute(
+                "SELECT monthly,year_to_date,twelve_month,weight FROM group_observation "
+                "WHERE period=? AND group_id=?",
+                key,
+            ).fetchone()
+            values = (row.monthly, row.year_to_date, row.twelve_month, row.weight)
+            if current is None:
+                inserted += 1
+            elif current == values:
+                unchanged += 1
+            else:
+                updated += 1
+            db.execute(
+                """
+                INSERT INTO group_observation VALUES(?,?,?,?,?,?,?)
+                ON CONFLICT(period,group_id) DO UPDATE SET monthly=excluded.monthly,
+                    year_to_date=excluded.year_to_date,twelve_month=excluded.twelve_month,
+                    weight=excluded.weight,run_id=excluded.run_id
+            """,
+                [*key, *values, run_id],
             )
         return inserted, updated, unchanged
 
