@@ -2,7 +2,7 @@
 
 Pipeline de dados públicos do **IPCA nacional**, com Python, SQL/DuckDB e painel Streamlit. Coleta dados do IBGE, valida o contrato da fonte, preserva a última base válida e registra origem, hash e resultado de cada execução.
 
-**Versão 0.3.0 · execução local · sem conta, chave de API ou recurso pago.**
+**Versão 0.3.1 · execução local · sem conta, chave de API ou recurso pago.**
 
 ![Painel do Radar da Inflação](docs/imagens/painel-desktop.png)
 
@@ -140,6 +140,18 @@ Na versão 0.2.1, os CSVs validam tipos e procedência antes de gerar o arquivo 
 
 A publicação pela CLI requer suporte a hard links no volume de destino (validado no D: / NTFS). Em volume sem esse suporte, use o download do navegador ou outro diretório local. Não são necessárias dependências novas. Confira os achados, testes e limites na [revisão 0.2.1](docs/REVISAO-0.2.1.md).
 
+## Revisão dos grupos — 0.3.1
+
+O ranking mantém a precisão mesmo quando o contexto decimal do processo é alterado. Dados locais dos grupos são revalidados antes dos gráficos e cálculos: nomes/IDs, meses, duplicações, taxas, ausências históricas e pesos. Uma inconsistência gera mensagem e impede a análise afetada.
+
+O CSV comparativo confere quatro medidas coerentes com os resumos, diferenças A − B e as mesmas janelas para todos os grupos. Valores ausentes continuam restritos ao acumulado oficial de 12 meses de janeiro–novembro/2020. Os formatos dos CSVs válidos foram preservados.
+
+Os gráficos não alteram configurações globais entre sessões. Se um acumulado sintético extremo exceder a capacidade numérica do gráfico, a interface informa a limitação e mantém a tabela/CSV decimal, sem transformar o resultado em zero.
+
+**229 testes aprovados no Windows / Python 3.13 e 3.12.** Incluem gravação concorrente, interrupção de processo antes do commit, disputa pelo mesmo CSV, dados inválidos e limites numéricos. Em navegador real, os três downloads da sessão anterior permaneceram idênticos durante outra atualização; a nova sessão recebeu os dados publicados. Nenhuma dependência ou migração nova é necessária para quem usa a versão 0.3.0.
+
+[Achados, correções, evidências e limites da revisão](docs/REVISAO-0.3.1.md).
+
 ## Arquitetura
 
 ~~~mermaid
@@ -155,7 +167,7 @@ flowchart LR
     DB --> CSV[CSV / procedência]
 ~~~
 
-[Arquitetura e decisões](docs/ARQUITETURA.md) · [Testes atuais](docs/VALIDACAO-0.3.0.md) · [Instalação e uso](docs/INSTALACAO.md) · [Dados e limites](docs/DADOS.md).
+[Arquitetura e decisões](docs/ARQUITETURA.md) · [Revisão e testes atuais](docs/REVISAO-0.3.1.md) · [Instalação e uso](docs/INSTALACAO.md) · [Dados e limites](docs/DADOS.md).
 
 ## Pastas e armazenamento
 

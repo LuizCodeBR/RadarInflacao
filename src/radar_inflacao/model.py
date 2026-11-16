@@ -17,7 +17,7 @@ MAX_BYTES = 2 * 1024 * 1024
 
 def month(value: str) -> str:
     if not isinstance(value, str) or not re.fullmatch(
-        r"(?:19|20|21)\d{2}-(?:0[1-9]|1[0-2])", value
+        r"(?:19|20|21)[0-9]{2}-(?:0[1-9]|1[0-2])", value
     ):
         raise ValidationError("Mês inválido. Use AAAA-MM.")
     return value

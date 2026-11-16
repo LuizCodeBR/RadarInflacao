@@ -1,4 +1,4 @@
-# Arquitetura — Radar da Inflação 0.3.0
+# Arquitetura — Radar da Inflação 0.3.1
 
 ## Escopo e escolhas
 
@@ -11,7 +11,7 @@ Uma aplicação Python com módulos por responsabilidade. Interface, CLI e teste
 | model.py | Meses, números decimais, JSON sem chaves duplicadas e contrato do IBGE |
 | source.py | Origem HTTPS fixa, timeouts, limite de tamanho e retentativas limitadas |
 | pipeline.py | Amostra/coleta, validação integral, arquivo bruto e publicação transacional |
-| storage.py | DuckDB, esquema 1, lock entre processos e consultas parametrizadas |
+| storage.py | DuckDB, esquema 2, lock entre processos e consultas parametrizadas |
 | analysis.py | Resumo de intervalos, composição decimal, comparação e apresentação de taxas |
 | report.py | CSV mensal com procedência e CSV de comparação com método e janelas |
 | cli.py | Comandos e identificação da pasta independente |
@@ -99,3 +99,14 @@ snapshot(include_groups=True) lê ambos os conjuntos e seus históricos sob o me
 Apenas as ausências de 12 meses de janeiro–novembro/2020 são aceitas para os grupos. O cálculo compartilhado recebe permissão explícita para essa janela; a validação nacional continua recusando ausência. Campos ausentes são exibidos como Não disponível e exportados vazios.
 
 Veja [guia dos grupos](GRUPOS.md) e [testes 0.3.0](VALIDACAO-0.3.0.md).
+
+
+## Revisão dos grupos na versão 0.3.1
+
+A validação de entrada da coleta permanece. validate_group_rows acrescenta uma segunda conferência do retrato local antes de filtros, ranking, comparação e CSV: até 1200 × 9 registros, categorias/nomes canônicos, meses ASCII desde 2020, pares únicos, taxas finitas, ausência histórica explícita e pesos. Quando há os nove grupos de um mês, a soma dos pesos usa o mesmo contexto independente e tolerância de 0,05 p.p. O painel exige cobertura completa dos nove grupos na base lida.
+
+O ranking usa Decimal.copy_negate(), que não arredonda nem herda a precisão do contexto do chamador. A ordem de desempate continua sendo a oficial. comparison_measures centraliza os quatro indicadores; o exportador dos grupos confere os resumos, os valores, as diferenças e as janelas antes de serializar. Isso é uma verificação de coerência, não uma reconstrução da coleta a partir do resumo: a procedência por observação continua no CSV do período.
+
+O gráfico de evolução usa dados inline limitados pelo contrato da aplicação, sem desabilitar globalmente a proteção de volume do Altair. O gráfico comparativo confere se a conversão decimal para float resulta em números finitos; caso contrário, a interface informa a limitação e mantém a representação decimal na tabela e no CSV.
+
+Esquema 2, bloqueio, transações, publicação de arquivos, origem fixa e dependências permanecem. Ensaios de processos reais confirmam commit completo, rollback após morte do escritor, recuperação do histórico INTERRUPTED e proteção contra sobrescrita concorrente de CSV. [Revisão completa](REVISAO-0.3.1.md).

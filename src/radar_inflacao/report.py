@@ -12,7 +12,13 @@ from decimal import Decimal
 from pathlib import Path
 from uuid import UUID
 
-from .analysis import PeriodComparison, validated_rate
+from .analysis import (
+    ComparisonMeasure,
+    PeriodComparison,
+    PeriodSummary,
+    comparison_measures,
+    validated_rate,
+)
 from .errors import ValidationError
 from .model import month, periods
 
@@ -164,8 +170,9 @@ def publish_csv(destination: Path, data: bytes) -> None:
 
 
 def group_csv_bytes(rows: list[dict]) -> bytes:
-    from .groups import GROUPS
+    from .groups import GROUPS, validate_group_rows
 
+    validate_group_rows(rows)
     stream = io.StringIO(newline="")
     writer = csv.writer(stream, delimiter=";", lineterminator="\r\n")
     writer.writerow(
@@ -185,16 +192,8 @@ def group_csv_bytes(rows: list[dict]) -> bytes:
         ]
     )
     for row in rows:
-        code = row.get("group_id")
-        if code not in GROUPS or row.get("group_name") != GROUPS[code]:
-            raise ValidationError("Grupo inválido para exportação CSV.")
-        period = month(row.get("period"))
-        twelve = row.get("twelve_month")
-        if twelve is None and not "2020-01" <= period < "2020-12":
-            raise ValidationError("Acumulado em 12 meses ausente fora da janela histórica.")
-        weight = validated_rate(row.get("weight"))
-        if not 0 <= weight <= 100:
-            raise ValidationError("Peso inválido para exportação.")
+        code, period = row["group_id"], row["period"]
+        twelve, weight = row["twelve_month"], row["weight"]
         writer.writerow(
             [
                 period,
@@ -211,10 +210,57 @@ def group_csv_bytes(rows: list[dict]) -> bytes:
     return ("\ufeff" + stream.getvalue()).encode("utf-8")
 
 
+def _validate_group_comparison(comparison: PeriodComparison) -> None:
+    if not isinstance(comparison, PeriodComparison):
+        raise ValidationError("Comparação dos grupos inválida.")
+    for summary in (comparison.a, comparison.b):
+        if not isinstance(summary, PeriodSummary):
+            raise ValidationError("Resumo dos grupos inválido.")
+        if type(summary.count) is not int or summary.count != len(
+            periods(summary.start, summary.end)
+        ) or summary.start < "2020-01":
+            raise ValidationError("Quantidade de meses inválida para exportação.")
+        validated_rate(summary.monthly)
+        validated_rate(summary.year_to_date)
+        if summary.twelve_month is not None or not "2020-01" <= summary.end < "2020-12":
+            validated_rate(summary.twelve_month)
+        _number(summary.compounded)
+        # Limite proporcional ao contrato das taxas, antes de comparar objetos externos.
+        limit = summary.count * 16 + 32
+        if (
+            summary.compounded < -100
+            or len(summary.compounded.as_tuple().digits) > limit
+            or abs(summary.compounded.as_tuple().exponent) > limit
+            or summary.compounded.adjusted() > summary.count * 5 + 2
+        ):
+            raise ValidationError("Acumulado estimado incompatível com o intervalo.")
+    if not isinstance(comparison.measures, tuple) or len(comparison.measures) != 4:
+        raise ValidationError("A comparação exige quatro medidas distintas.")
+    for measure in comparison.measures:
+        if not isinstance(measure, ComparisonMeasure):
+            raise ValidationError("Medida comparativa inválida.")
+        _text(measure.label)
+        _text(measure.method)
+        for value in (measure.a, measure.b, measure.difference):
+            if value is not None:
+                _number(value)
+    if comparison.measures != comparison_measures(comparison.a, comparison.b):
+        raise ValidationError("Medidas ou diferenças divergem dos resumos da comparação.")
+
+
 def group_comparison_csv_bytes(comparisons: dict[str, PeriodComparison]) -> bytes:
     from .groups import GROUPS, selected_groups
 
-    selected_groups(list(comparisons))
+    if not isinstance(comparisons, dict):
+        raise ValidationError("Coleção de comparações inválida.")
+    codes = selected_groups(list(comparisons))
+    windows = set()
+    for code in codes:
+        comparison = comparisons[code]
+        _validate_group_comparison(comparison)
+        windows.add((comparison.a.start, comparison.a.end, comparison.b.start, comparison.b.end))
+    if len(windows) != 1:
+        raise ValidationError("Todos os grupos devem comparar os mesmos períodos A e B.")
     stream = io.StringIO(newline="")
     writer = csv.writer(stream, delimiter=";", lineterminator="\r\n")
     writer.writerow(
@@ -235,13 +281,8 @@ def group_comparison_csv_bytes(comparisons: dict[str, PeriodComparison]) -> byte
             "Fonte",
         ]
     )
-    for code in selected_groups(list(comparisons)):
+    for code in codes:
         comparison = comparisons[code]
-        for summary in (comparison.a, comparison.b):
-            if type(summary.count) is not int or summary.count != len(
-                periods(summary.start, summary.end)
-            ):
-                raise ValidationError("Quantidade de meses inválida para exportação.")
         for measure in comparison.measures:
             writer.writerow(
                 [

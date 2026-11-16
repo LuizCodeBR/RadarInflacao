@@ -147,13 +147,55 @@ def parse_group_observations(raw: bytes, expected: list[str]) -> list[GroupObser
 
 
 def selected_groups(codes: list[str]) -> list[str]:
-    if not codes or len(codes) != len(set(codes)) or any(code not in GROUPS for code in codes):
+    if (
+        not isinstance(codes, (list, tuple))
+        or not codes
+        or any(not isinstance(code, str) or code not in GROUPS for code in codes)
+        or len(codes) != len(set(codes))
+    ):
         raise ValidationError("Selecione grupos válidos, sem repetição.")
     return [code for code in GROUPS if code in codes]
 
 
+def validate_group_rows(rows: list[dict]) -> None:
+    """Revalida o retrato local antes de análise/CSV; não confia só na coleta passada."""
+    if not isinstance(rows, list) or len(rows) > 1200 * len(GROUPS):
+        raise ValidationError("Quantidade de registros dos grupos inválida.")
+    pairs, weights = set(), {}
+    for row in rows:
+        if not isinstance(row, dict):
+            raise ValidationError("Registro de grupo inválido.")
+        code = row.get("group_id")
+        if (
+            not isinstance(code, str)
+            or code not in GROUPS
+            or row.get("group_name") != GROUPS[code]
+        ):
+            raise ValidationError("Identificação de grupo inválida.")
+        period = month(row.get("period"))
+        if period < BASE_MONTH or (period, code) in pairs:
+            raise ValidationError("Mês inválido ou registro de grupo duplicado.")
+        pairs.add((period, code))
+        validated_rate(row.get("monthly"))
+        validated_rate(row.get("year_to_date"))
+        if "twelve_month" not in row:
+            raise ValidationError("Registro sem o campo de acumulado em 12 meses.")
+        twelve = row["twelve_month"]
+        if twelve is not None or not "2020-01" <= period < "2020-12":
+            validated_rate(twelve)
+        weight = validated_rate(row.get("weight"))
+        if not 0 <= weight <= 100:
+            raise ValidationError("Peso do grupo fora de 0 a 100%.")
+        weights.setdefault(period, []).append(weight)
+    with localcontext(_context(32)):
+        for values in weights.values():
+            if len(values) == len(GROUPS) and abs(sum(values) - Decimal(100)) > Decimal("0.05"):
+                raise ValidationError("A soma dos pesos dos nove grupos diverge de 100%.")
+
+
 def filter_group_rows(rows: list[dict], codes: list[str], start: str, end: str) -> list[dict]:
     codes = selected_groups(codes)
+    validate_group_rows(rows)
     expected = periods(start, end)
     selected = [row for row in rows if row["group_id"] in codes and start <= row["period"] <= end]
     pairs = [(row["period"], row["group_id"]) for row in selected]
@@ -184,4 +226,7 @@ def group_ranking(rows, codes, period):
     selected = filter_group_rows(rows, codes, period, period)
     for row in selected:
         validated_rate(row["monthly"])
-    return sorted(selected, key=lambda row: (-row["monthly"], list(GROUPS).index(row["group_id"])))
+    return sorted(
+        selected,
+        key=lambda row: (row["monthly"].copy_negate(), list(GROUPS).index(row["group_id"])),
+    )

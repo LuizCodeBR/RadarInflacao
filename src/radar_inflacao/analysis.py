@@ -154,6 +154,11 @@ def compare_periods(
 ) -> PeriodComparison:
     a = summarize_period(rows, start_a, end_a, allow_missing_12=allow_missing_12)
     b = summarize_period(rows, start_b, end_b, allow_missing_12=allow_missing_12)
+    return PeriodComparison(a, b, comparison_measures(a, b))
+
+
+def comparison_measures(a: PeriodSummary, b: PeriodSummary) -> tuple[ComparisonMeasure, ...]:
+    """Define as quatro medidas e suas diferenças a partir de resumos validados."""
     definitions = [
         (ESTIMATED_LABEL, "compounded", "Composição das taxas mensais publicadas (estimativa)"),
         *(
@@ -174,7 +179,7 @@ def compare_periods(
             )
             for label, key, method in definitions
         )
-    return PeriodComparison(a, b, measures)
+    return measures
 
 
 def _display(value: Decimal, signed: bool) -> str:

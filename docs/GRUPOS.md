@@ -1,4 +1,4 @@
-# Análise dos nove grupos — versão 0.3.0
+# Análise dos nove grupos — versão 0.3.1
 
 ## Usar o painel
 
@@ -80,3 +80,14 @@ Exportar apenas os grupos escolhidos:
 Sem --groups, todos os nove são selecionados. O CSV preserva números, IDs, nomes canônicos, peso, modo, data, hash e coleta. Exportação nacional continua sendo o padrão do comando export. A publicação pela CLI mantém a proteção contra sobrescrita e exige volume com suporte a hard links; o download no navegador não tem esse requisito.
 
 Não há novas dependências, contas, nuvem, cobrança ou atualização automática. A primeira instalação precisa de internet; depois as duas amostras permitem explorar o painel offline. Consultar atualizações exige conexão com o IBGE.
+
+
+## Proteções da revisão 0.3.1
+
+Dados lidos da base são conferidos novamente antes da análise. Nome ou ID divergente, registros duplicados, taxas inválidas, peso fora do contrato e ausência inesperada impedem gráficos e downloads afetados, com mensagem no painel. A soma de pesos só é conferida contra 100% quando estão presentes os nove grupos do mês; selecionar parte dos grupos não exige soma de 100%.
+
+Empates reais no ranking seguem a ordem oficial; mudanças na precisão decimal de outras rotinas não criam empates artificiais. Os CSVs válidos mantêm colunas, precisão, separador e BOM. Na comparação, campos vazios são aceitos somente para o indicador histórico ausente e sua diferença; resumos e quatro medidas precisam ser coerentes e usar as mesmas janelas por grupo.
+
+Os gráficos usam float apenas na apresentação. Acumulados sintéticos muito grandes podem exceder essa representação: a tela avisa e preserva os valores decimais na tabela/CSV. O limite analítico continua sendo 1200 meses, com até 10800 registros dos nove grupos. Isso não implica disponibilidade de dados futuros.
+
+A versão 0.3.1 abre a base da 0.3.0 sem nova migração e não altera as amostras. [Relatório da revisão e testes](REVISAO-0.3.1.md).

@@ -1,12 +1,20 @@
 """Interface dos grupos; filtros e downloads usam o mesmo snapshot."""
 
+import math
+
 import altair as alt
 import pandas as pd
 import streamlit as st
 
 from .analysis import format_points, format_rate, reference_period
 from .errors import RadarError
-from .groups import GROUPS, filter_group_rows, group_comparisons, group_ranking
+from .groups import (
+    GROUPS,
+    filter_group_rows,
+    group_comparisons,
+    group_ranking,
+    validate_group_rows,
+)
 from .report import group_comparison_csv_bytes, group_csv_bytes
 
 
@@ -36,13 +44,67 @@ def ranking_chart(ranking):
     )
 
 
+def evolution_chart(selected, measure):
+    records = [
+        {
+            "Mês": row["period"],
+            "Grupo": GROUPS[row["group_id"]],
+            "Taxa (%)": None if row[measure] is None else float(row[measure]),
+        }
+        for row in selected
+    ]
+    # A aplicação limita a 1200 meses × 9 grupos. Dados inline evitam alterar
+    # o limite global do Altair, compartilhado por sessões do mesmo processo.
+    return (
+        alt.Chart(alt.Data(values=records))
+        .mark_line()
+        .encode(
+            x=alt.X("Mês:O", sort=sorted({r["Mês"] for r in records}), title="Mês"),
+            y=alt.Y("Taxa (%):Q", title="Variação (%)"),
+            color=alt.Color(
+                "Grupo:N",
+                legend=alt.Legend(orient="bottom", direction="vertical", columns=1, labelLimit=0),
+            ),
+            tooltip=["Grupo:N", "Mês:O", alt.Tooltip("Taxa (%):Q", format=".2f")],
+        )
+        .properties(height=360 + 22 * len({r["group_id"] for r in selected}))
+    )
+
+
+def comparison_chart_data(comparisons):
+    records = [
+        {
+            "Grupo": GROUPS[code],
+            "Período A (%)": float(c.a.compounded),
+            "Período B (%)": float(c.b.compounded),
+        }
+        for code, c in comparisons.items()
+    ]
+    if any(
+        not math.isfinite(row[key])
+        for row in records
+        for key in ("Período A (%)", "Período B (%)")
+    ):
+        return None
+    return pd.DataFrame(records).set_index("Grupo")
+
+
 def render_groups(rows, history):
     st.header("Inflação por grupos")
     st.caption("Brasil · IBGE/SIDRA 7060 · Nove grupos de despesas")
     if not rows:
         st.info("Não há dados dos grupos. Importe a amostra ou solicite a atualização.")
         return
-    available = sorted({row["period"] for row in rows})
+    try:
+        validate_group_rows(rows)
+        available = sorted({row["period"] for row in rows})
+        filter_group_rows(rows, list(GROUPS), available[0], available[-1])
+    except RadarError as error:
+        st.error(f"Dados dos grupos inválidos: {error}")
+        st.info(
+            "Preserve a base para conferência e reconfira a coleta antes de analisar os grupos."
+        )
+        return
     modes = {row["mode"] for row in rows}
     label = (
         "AMOSTRA INCLUÍDA"
@@ -101,34 +163,8 @@ def render_groups(rows, history):
         "Indicador do gráfico", list(labels), format_func=labels.get, key="g_measure"
     )
     st.subheader("Evolução dos grupos")
-    chart = pd.DataFrame(
-        [
-            {
-                "Mês": row["period"],
-                "Grupo": GROUPS[row["group_id"]],
-                "Taxa (%)": None if row[measure] is None else float(row[measure]),
-            }
-            for row in selected
-        ]
-    )
-    if chart["Taxa (%)"].notna().any():
-        st.altair_chart(
-            alt.Chart(chart)
-            .mark_line()
-            .encode(
-                x=alt.X("Mês:O", sort=sorted(chart["Mês"].unique()), title="Mês"),
-                y=alt.Y("Taxa (%):Q", title="Variação (%)"),
-                color=alt.Color(
-                    "Grupo:N",
-                    legend=alt.Legend(
-                        orient="bottom", direction="vertical", columns=1, labelLimit=0
-                    ),
-                ),
-                tooltip=["Grupo:N", "Mês:O", alt.Tooltip("Taxa (%):Q", format=".2f")],
-            )
-            .properties(height=360 + 22 * len(codes)),
-            width="stretch",
-        )
+    if any(row[measure] is not None for row in selected):
+        st.altair_chart(evolution_chart(selected, measure), width="stretch")
     else:
         st.info("Este indicador não está disponível para os meses selecionados.")
     st.subheader("Ranking mensal dos grupos selecionados")
@@ -183,6 +219,7 @@ def render_groups(rows, history):
         bs, be = reference_period(start, end, mode)
     try:
         comparisons = group_comparisons(rows, codes, start, end, bs, be)
+        comparison_csv = group_comparison_csv_bytes(comparisons)
     except RadarError as error:
         st.info(f"Comparação dos grupos indisponível: {error}")
     else:
@@ -192,17 +229,14 @@ def render_groups(rows, history):
             st.warning("Os períodos têm durações diferentes; os acumulados não foram anualizados.")
         if first.overlap:
             st.info("Os períodos se sobrepõem; meses comuns participam dos dois cálculos.")
-        estimates = pd.DataFrame(
-            [
-                {
-                    "Grupo": GROUPS[code],
-                    "Período A (%)": float(c.a.compounded),
-                    "Período B (%)": float(c.b.compounded),
-                }
-                for code, c in comparisons.items()
-            ]
-        ).set_index("Grupo")
-        st.bar_chart(estimates, horizontal=True, stack=False, sort=False)
+        estimates = comparison_chart_data(comparisons)
+        if estimates is None:
+            st.info(
+                "Gráfico comparativo indisponível: os acumulados excedem a capacidade numérica "
+                "do gráfico. Os valores decimais continuam disponíveis na tabela e no CSV."
+            )
+        else:
+            st.bar_chart(estimates, horizontal=True, stack=False, sort=False)
         st.caption("Acumulados estimados pela composição das taxas mensais publicadas.")
         st.dataframe(
             [
@@ -224,7 +258,7 @@ def render_groups(rows, history):
         )
         st.download_button(
             "Baixar CSV da comparação dos grupos",
-            group_comparison_csv_bytes(comparisons),
+            comparison_csv,
             file_name=f"grupos-comparacao-{start}-{end}-vs-{bs}-{be}.csv",
             mime="text/csv",
             key="g_comparison_csv",
