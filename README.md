@@ -1,14 +1,18 @@
 # Radar da Inflação
 
-Pipeline de dados públicos do **IPCA e INPC nacionais, nove grupos e 16 áreas do IPCA**, com Python, SQL/DuckDB e painel Streamlit. Coleta dados do IBGE, valida o contrato da fonte, preserva a última base válida e registra origem, hash e resultado de cada execução.
+Como a inflação medida pelo IPCA se compara à do INPC no mesmo mês? O Radar permite explorar os dois índices nacionais, os nove grupos de despesas e as 16 áreas do IPCA com dados públicos do IBGE. O painel roda no navegador, no seu computador.
 
-**Versão 0.6.1 · execução local · sem conta, chave de API ou recurso pago.**
+O projeto usa **Python, SQL com DuckDB e Streamlit**. A cada atualização, o pipeline confere a estrutura e a origem dos dados, registra o que mudou e preserva a última base válida se a coleta falhar.
 
-![Painel do Radar da Inflação](docs/imagens/painel-desktop.png)
+**[Baixar a versão 0.6.1 (ZIP)](https://github.com/LuizCodeBR/RadarInflacao/releases/download/v0.6.1/RadarInflacao-0.6.1-fonte.zip)** · [Notas da versão](https://github.com/LuizCodeBR/RadarInflacao/releases/tag/v0.6.1) · [Resultados dos testes da versão](https://github.com/LuizCodeBR/RadarInflacao/actions/runs/44188377708)
 
-A versão **0.6.0** acrescenta a comparação nacional IPCA × INPC, gráficos de evolução/diferenças, comparação A/B, CSV e INPC na central de qualidade. Inclui amostra offline desde janeiro/2020 e migração para esquema 5. [Guia do comparador](docs/INDICES.md) · [Validação](docs/VALIDACAO-0.6.0.md).
+![Painel do comparador nacional com a evolução do IPCA e do INPC e a diferença entre os índices em pontos percentuais](docs/imagens/indices-desktop.png)
 
-A revisão **0.6.1** valida a procedência antes de publicar cada coleta, limita o tempo observado por download, associa medidas pelos nomes, preserva a escolha do indicador após filtros inválidos e mostra pontos mesmo ao filtrar um único mês. **536 testes aprovados em Python 3.12 e 3.13.** Mantém banco, amostras, dependências e formatos CSV. [Revisão e testes atuais](docs/REVISAO-0.6.1.md).
+## Experimente com a amostra incluída
+
+1. **Prepare o projeto.** Com Python 3.12 ou 3.13 instalado, extraia o ZIP em uma pasta onde você possa gravar arquivos.
+2. **Abra o painel.** Na pasta extraída, execute `iniciar.cmd` no Windows ou `bash iniciar.sh` no Linux/macOS. A primeira execução usa internet para instalar as dependências. Acesse `http://localhost:8501` no navegador. A amostra funciona offline, sem conta, chave de API ou serviço pago.
+3. **Confira um resultado.** Em **Análise**, escolha **IPCA × INPC**. Selecione `2026-10` como mês inicial e final e escolha **Variação mensal**. Na amostra, o IPCA é **0,14%** e o INPC é **0,22%**. A diferença **INPC − IPCA** é de **+0,08 ponto percentual**. Clique em **Baixar CSV IPCA × INPC** para conferir a linha de outubro e a origem de cada índice.
 
 ## Experimentar no Windows
 
@@ -44,7 +48,7 @@ bash iniciar.sh
 RADAR_PYTHON=python3.13 bash iniciar.sh
 ~~~
 
-O iniciador prepara o ambiente e abre o mesmo painel local. A validação realizada nesta entrega foi no Windows; o workflow preparado inclui Windows/Linux.
+O GitHub Actions verificou a versão 0.6.1 em Windows e Ubuntu, com Python 3.12 e 3.13 em ambos. O iniciador também está disponível para macOS, cuja execução não foi verificada nesta versão. [Ver as quatro combinações testadas](https://github.com/LuizCodeBR/RadarInflacao/actions/runs/44188377708).
 
 ## O que funciona
 
@@ -129,7 +133,11 @@ Compare com período anterior, ano anterior ou intervalo manual. O acumulado do 
 
 As coberturas são informadas separadamente. Falta de mês impede o recorte, sem preencher zero ou encurtar silenciosamente. O INPC usa tabela 1736 e variáveis próprias; o IPCA nacional mantém a tabela 1737. Não se misturam com a referência regional da 7060.
 
-![Comparação dos índices](docs/imagens/indices-desktop.png)
+A versão 0.6.0 introduziu o comparador, a amostra offline desde janeiro de 2020 e a migração para o esquema 5. [Guia do comparador](docs/INDICES.md) · [Validação da versão 0.6.0](docs/VALIDACAO-0.6.0.md).
+
+Na revisão 0.6.1, o pipeline passou a verificar a procedência antes de publicar cada coleta e a acompanhar o tempo de download. O comparador associa as medidas pelo nome, preserva o indicador após um filtro inválido e exibe os pontos ao selecionar um único mês. A suíte dessa versão passou nos **536 testes**. [Revisão técnica e testes](docs/REVISAO-0.6.1.md).
+
+![Comparação entre dois períodos para o IPCA e o INPC](docs/imagens/indices-comparacao.png)
 
 ~~~powershell
 .\.venv\Scripts\python.exe -m radar_inflacao demo --dataset inpc
