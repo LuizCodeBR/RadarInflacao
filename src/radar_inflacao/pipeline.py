@@ -12,9 +12,10 @@ from datetime import datetime
 from pathlib import Path
 
 from . import audit
+from .audit_contract import timestamp
 from .errors import RadarError, ValidationError
 from .model import BASE_MONTH, next_month, parse_observations, periods, validate_metadata
-from .source import METADATA_URL, IbgeSource
+from .source import METADATA_URL, IbgeSource, data_url
 from .storage import Repository, utc_now
 
 
@@ -87,6 +88,7 @@ class Pipeline:
     metadata_validator = staticmethod(validate_metadata)
     parser = staticmethod(parse_observations)
     source_type = IbgeSource
+    source_url_builder = staticmethod(data_url)
 
     def __init__(self, repository: Repository, sample_directory: Path, source=None):
         self.repository = repository
@@ -167,6 +169,12 @@ class Pipeline:
                     )
                 if batch.end > declared_end:
                     raise ValidationError("O período excede a disponibilidade declarada pelo IBGE.")
+                timestamp(batch.retrieved_at)
+                if (
+                    batch.start < BASE_MONTH
+                    or batch.source_url != self.source_url_builder(batch.start, batch.end)
+                ):
+                    raise ValidationError("Origem ou intervalo incompatível com a coleta.")
                 rows = self.parser(batch.raw, periods(batch.start, batch.end))
                 audit.stage(db, dataset, run_id, "ARCHIVE")
                 raw_sha, raw_file = archive(self.repository.directory, batch.raw, ".json")
@@ -232,7 +240,7 @@ class Pipeline:
 
 class GroupPipeline(Pipeline):
     from .groups import parse_group_observations, validate_group_metadata
-    from .source import GroupSource
+    from .source import GroupSource, group_data_url
 
     grouped = True
     dataset = "groups"
@@ -240,6 +248,7 @@ class GroupPipeline(Pipeline):
     metadata_validator = staticmethod(validate_group_metadata)
     parser = staticmethod(parse_group_observations)
     source_type = GroupSource
+    source_url_builder = staticmethod(group_data_url)
 
 
     def publish(self, db, rows, run_id):

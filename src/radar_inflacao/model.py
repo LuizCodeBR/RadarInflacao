@@ -134,7 +134,10 @@ def parse_observations(
             "Dados inconsistentes: confira medidas, Brasil, unidade %, meses e valores. "
             "Ausência de dado não é tratada como zero."
         ) from exc
-    return [Observation(m, *(values[key][m] for key in variable_map)) for m in expected]
+    return [
+        Observation(m, **{field: values[key][m] for key, field in variable_map.items()})
+        for m in expected
+    ]
 
 
 def as_date(value: str) -> date:

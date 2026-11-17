@@ -32,6 +32,7 @@ class InpcPipeline(Pipeline):
     dataset = "inpc"
     run_table = "inpc_ingestion"
     source_type = InpcSource
+    source_url_builder = staticmethod(inpc_data_url)
     metadata_validator = staticmethod(validate_inpc_metadata)
     parser = staticmethod(parse_inpc_observations)
 

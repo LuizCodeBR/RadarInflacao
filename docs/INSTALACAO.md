@@ -73,3 +73,10 @@ No computador de desenvolvimento, a base principal foi preservada e os ensaios o
 O comparador IPCA × INPC usa as mesmas versões de Python e dependências. Encerre o aplicativo, preserve data e substitua o pacote fonte completo. Ao abrir, o esquema migra de 4 para 5, adicionando apenas as tabelas do INPC. Código até 0.5.1 não abre esquema 5; guarde uma cópia compatível se precisar reverter.
 
 Nesta máquina foi preservada a cópia D:/Projetos/RadarInflacao/.cache/antes-migracao060. Não exige extensão ou novo software. [Guia dos índices](INDICES.md) · [Validação](VALIDACAO-0.6.0.md).
+
+
+## Atualização para 0.6.1
+
+Não há instalação, extensão ou migração adicional para quem usa 0.6.0. Com o painel encerrado, preserve sua pasta data e atualize os arquivos do projeto. iniciar.cmd e testar.cmd continuam preparando somente as dependências já fixadas. As amostras incluídas continuam permitindo testes offline após a preparação inicial.
+
+Nesta revisão, cópia sob bloqueio em D:/Projetos/RadarInflacao/.cache/revisao061-base. O banco principal não recebe coleta, importação ou migração. [Relatório da revisão](REVISAO-0.6.1.md).

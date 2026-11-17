@@ -2,11 +2,13 @@
 
 Pipeline de dados públicos do **IPCA e INPC nacionais, nove grupos e 16 áreas do IPCA**, com Python, SQL/DuckDB e painel Streamlit. Coleta dados do IBGE, valida o contrato da fonte, preserva a última base válida e registra origem, hash e resultado de cada execução.
 
-**Versão 0.6.0 · execução local · sem conta, chave de API ou recurso pago.**
+**Versão 0.6.1 · execução local · sem conta, chave de API ou recurso pago.**
 
 ![Painel do Radar da Inflação](docs/imagens/painel-desktop.png)
 
 A versão **0.6.0** acrescenta a comparação nacional IPCA × INPC, gráficos de evolução/diferenças, comparação A/B, CSV e INPC na central de qualidade. Inclui amostra offline desde janeiro/2020 e migração para esquema 5. [Guia do comparador](docs/INDICES.md) · [Validação](docs/VALIDACAO-0.6.0.md).
+
+A revisão **0.6.1** valida a procedência antes de publicar cada coleta, limita o tempo observado por download, associa medidas pelos nomes, preserva a escolha do indicador após filtros inválidos e mostra pontos mesmo ao filtrar um único mês. **536 testes aprovados em Python 3.12 e 3.13.** Mantém banco, amostras, dependências e formatos CSV. [Revisão e testes atuais](docs/REVISAO-0.6.1.md).
 
 ## Experimentar no Windows
 
@@ -249,7 +251,7 @@ flowchart LR
     DB --> CSV[CSV / procedência]
 ~~~
 
-[Arquitetura e decisões](docs/ARQUITETURA.md) · [Testes atuais](docs/VALIDACAO-0.6.0.md) · [Instalação e uso](docs/INSTALACAO.md) · [Dados e limites](docs/DADOS.md).
+[Arquitetura e decisões](docs/ARQUITETURA.md) · [Testes atuais](docs/REVISAO-0.6.1.md) · [Instalação e uso](docs/INSTALACAO.md) · [Dados e limites](docs/DADOS.md).
 
 ## Pastas e armazenamento
 

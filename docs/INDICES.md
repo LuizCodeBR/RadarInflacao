@@ -1,4 +1,4 @@
-# Comparador nacional IPCA × INPC — 0.6.0
+# Comparador nacional IPCA × INPC — 0.6.1
 
 ## Usar
 
@@ -70,3 +70,12 @@ Encerre o painel e preserve data antes de atualizar outra instalação. Código 
 Python 3.12/3.13 e dependências existentes. Nenhuma extensão do VS Code, Node, Docker, banco servidor, API paga ou conta nova é necessária. Use o pacote fonte completo para receber app, amostras e iniciadores. O wheel isolado não distribui esses recursos.
 
 [Instalação](INSTALACAO.md) · [Arquitetura](ARQUITETURA.md) · [Validação](VALIDACAO-0.6.0.md).
+
+
+## Revisão 0.6.1
+
+O gráfico mostra marcadores para IPCA e INPC, inclusive com apenas um mês. O indicador selecionado permanece disponível durante um intervalo inválido, evitando divergência entre a escolha mostrada e os valores quando o período é corrigido. A publicação valida URL exata e data antes de substituir dados; entradas inconsistentes não passam a ser uma coleta válida. O parser associa cada medida pelo nome, independente da ordem do mapeamento.
+
+Downloads do IBGE passam por orçamento observado de 45 segundos por recurso, incluindo as tentativas desse recurso, além dos timeouts de conexão/leitura. A checagem ocorre entre etapas e blocos; não é prazo rígido da atualização inteira. Falhas liberam o bloqueio e preservam a última base publicada.
+
+Mantém os dois formatos CSV, o esquema 5 e as mesmas dependências. [Achados, testes e limites](REVISAO-0.6.1.md).

@@ -56,7 +56,7 @@ Capturas reais no Chromium local, com a amostra oficial de janeiro/2020 a outubr
 Capturas regionais atualizadas na revisão 0.5.1, após conferir filtros e os três downloads no navegador. A visualização mobile é emulação, não teste em aparelho físico.
 
 
-## IPCA × INPC — 0.6.0
+## IPCA × INPC — 0.6.1
 
 Capturas reais do Chromium local com as amostras oficiais de janeiro/2020 a outubro/2026. Tela inicial mostra novembro/2024–outubro/2026 e comparação com novembro/2022–outubro/2024. Brasil, tabelas 1737/1736. Desktop 1440 pixels e celular emulado 412 pixels; tabelas largas têm rolagem horizontal.
 
@@ -67,3 +67,8 @@ Capturas reais do Chromium local com as amostras oficiais de janeiro/2020 a outu
 <img src="indices-mobile.png" alt="Comparador IPCA e INPC no navegador de celular emulado" width="360">
 
 As barras de diferenças positivas e negativas foram verificadas após a correção de escape do nome do campo. Emulação não substitui teste em aparelho físico.
+
+
+As capturas do comparador foram atualizadas na revisão 0.6.1. O gráfico de evolução inclui marcadores; uma seleção só de outubro/2026 mostra IPCA 0,14% e INPC 0,22% como dois pontos visíveis, conferidos também no celular emulado.
+
+![Comparador em um único mês](indices-mes-unico.png)

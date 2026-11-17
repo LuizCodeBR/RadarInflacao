@@ -17,7 +17,7 @@ def evolution_chart(pairs, measure):
     ]
     return (
         alt.Chart(alt.Data(values=records))
-        .mark_line()
+        .mark_line(point=True)
         .encode(
             x=alt.X("Mês:O", sort=[p["period"] for p in pairs]),
             y=alt.Y("Taxa (%):Q"),
@@ -113,16 +113,18 @@ def render_indices(indices):
         "Mês inicial dos índices", available, index=max(0, len(available) - 24), key="i_start"
     )
     end = right.selectbox("Mês final dos índices", available, index=len(available) - 1, key="i_end")
+    # Mantém o widget montado durante um intervalo inválido, sem perder a escolha.
+    measure = st.selectbox(
+        "Indicador dos índices", list(MEASURES), format_func=MEASURES.get, key="i_measure"
+    )
     try:
         pairs = index_pairs(indices, start, end)
         period_csv = index_csv_bytes(indices, start, end)
     except RadarError as error:
         st.error(f"Consulta dos índices indisponível: {error}")
         return
-    st.caption(f"Período aplicado aos índices: {start} a {end} · {len(pairs)} meses em ambos.")
-    measure = st.selectbox(
-        "Indicador dos índices", list(MEASURES), format_func=MEASURES.get, key="i_measure"
-    )
+    duration = "1 mês" if len(pairs) == 1 else f"{len(pairs)} meses"
+    st.caption(f"Período aplicado aos índices: {start} a {end} · {duration} em ambos.")
     last = pairs[-1]
     st.subheader(f"{MEASURES[measure]} · {end}")
     a, b, c = st.columns(3)

@@ -2,7 +2,7 @@
 
 from . import area_storage
 from .area_source import AreaSource
-from .areas import parse_area_bundle, validate_area_metadata
+from .areas import area_data_url, parse_area_bundle, validate_area_metadata
 from .pipeline import Pipeline
 
 
@@ -10,6 +10,7 @@ class AreaPipeline(Pipeline):
     dataset = "areas"
     run_table = "area_ingestion"
     source_type = AreaSource
+    source_url_builder = staticmethod(area_data_url)
     parser = staticmethod(parse_area_bundle)
     metadata_validator = staticmethod(validate_area_metadata)
 

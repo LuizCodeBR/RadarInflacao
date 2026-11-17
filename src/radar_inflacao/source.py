@@ -12,6 +12,7 @@ from .model import MAX_BYTES, periods
 
 API = "https://servicodados.ibge.gov.br/api/v3/agregados/1737"
 METADATA_URL = API + "/metadados"
+DOWNLOAD_SECONDS = 45
 
 
 def data_url(start: str, end: str) -> str:
@@ -33,18 +34,30 @@ class IbgeSource:
         self.sleeper = sleeper
 
     def _download(self, client: httpx.Client, url: str) -> Download:
+        # Um servidor pode enviar fragmentos sem nunca atingir o timeout de inatividade.
+        # O orçamento monotônico é compartilhado pelas tentativas deste recurso.
+        deadline = time.monotonic() + DOWNLOAD_SECONDS
+
+        def remaining():
+            seconds = deadline - time.monotonic()
+            if seconds <= 0:
+                raise SourceError("IBGE excedeu o limite de tempo da consulta. Tente mais tarde.")
+            return seconds
+
         for attempt in range(3):
+            seconds = remaining()
             try:
                 with client.stream(
                     "GET",
                     url,
                     headers={"Accept": "application/json"},
                     follow_redirects=False,
-                    timeout=httpx.Timeout(15, connect=10),
+                    timeout=httpx.Timeout(min(15, seconds), connect=min(10, seconds)),
                 ) as response:
+                    remaining()
                     if response.status_code == 429 or response.status_code >= 500:
                         if attempt < 2:
-                            self.sleeper(attempt + 1)
+                            self.sleeper(min(attempt + 1, remaining()))
                             continue
                     if response.status_code != 200:
                         raise SourceError(
@@ -52,16 +65,18 @@ class IbgeSource:
                         )
                     content = bytearray()
                     for chunk in response.iter_bytes():
+                        remaining()
                         content.extend(chunk)
                         if len(content) > MAX_BYTES:
                             raise SourceError("IBGE retornou resposta maior que 2 MiB.")
+                    remaining()
                     return Download(bytes(content), url)
             except httpx.TransportError as exc:
                 if attempt == 2:
                     raise SourceError(
                         "Não foi possível consultar o IBGE. A base anterior foi preservada."
                     ) from exc
-                self.sleeper(attempt + 1)
+                self.sleeper(min(attempt + 1, remaining()))
         raise SourceError("Não foi possível concluir a consulta ao IBGE.")
 
     def fetch(self, url: str) -> Download:

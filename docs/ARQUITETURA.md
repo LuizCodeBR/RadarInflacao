@@ -1,8 +1,8 @@
-# Arquitetura — Radar da Inflação 0.6.0
+# Arquitetura — Radar da Inflação 0.6.1
 
 ## Escopo e escolhas
 
-Uma aplicação Python com módulos por responsabilidade. Interface, CLI e testes chamam o mesmo pipeline. O produto cobre o IPCA nacional, nove grupos de despesas e o índice geral das 16 áreas pesquisadas, desde 2020, com comparações locais, uma fonte e atualização manual.
+Uma aplicação Python com módulos por responsabilidade. Interface, CLI e testes chamam o mesmo pipeline. O produto cobre IPCA e INPC nacionais, nove grupos de despesas e o índice geral das 16 áreas pesquisadas, desde 2020, com comparações locais, uma fonte e atualização manual.
 
 | Módulo | Responsabilidade |
 | --- | --- |
@@ -16,7 +16,7 @@ Uma aplicação Python com módulos por responsabilidade. Interface, CLI e teste
 | model.py | Meses, números decimais, JSON sem chaves duplicadas e contrato do IBGE |
 | source.py | Origem HTTPS fixa, timeouts, limite de tamanho e retentativas limitadas |
 | pipeline.py | Amostra/coleta, validação integral, arquivo bruto e publicação transacional |
-| storage.py | DuckDB, esquema 3, lock entre processos e consultas parametrizadas |
+| storage.py | DuckDB, esquema 5, lock entre processos e consultas parametrizadas |
 | analysis.py | Resumo de intervalos, composição decimal, comparação e apresentação de taxas |
 | report.py | CSV mensal com procedência e CSV de comparação com método e janelas |
 | cli.py | Comandos e identificação da pasta independente |
@@ -180,3 +180,14 @@ indices.py revalida as publicações e alinha meses completos para A e B. Não e
 index_report.py gera CSV do período com origem dupla e quatro linhas A/B validadas. Tela arredonda a duas casas, CSV mantém cálculo decimal. index_view.py usa dados inline limitados e não muda estado global do Altair. Os dois downloads usam bytes preparados/on_click ignore.
 
 Auditoria/central ganham o conjunto inpc com tabelas e eventos próprios, preservando as anteriores. SQL usa nomes constantes/permitidos e valores parametrizados. Migração, valores, histórico, falhas e interrupção têm testes. [Guia](INDICES.md) · [Validação](VALIDACAO-0.6.0.md).
+
+
+## Revisão do comparador na versão 0.6.1
+
+A coleta compartilhada confere a URL canônica de dados e a data de obtenção antes de arquivar/publicar. Cada especialização fornece seu construtor de URL: nacional 1737, grupos 7060, áreas 7060 e INPC 1736. Um manifesto ou adaptador inconsistente deixa tentativa FAILED, preservando observações, origem anterior e eventos. A conferência analítica na leitura continua existindo.
+
+O cliente HTTP usa um orçamento monotônico de 45 segundos por recurso, compartilhado pelas até três tentativas. Verifica-o antes de pedir, após os cabeçalhos, entre blocos decodificados e ao terminar; reduz a espera/requisição ao tempo restante. Não é cancelamento assíncrono de uma chamada bloqueada: timeouts de conexão/leitura continuam necessários, e a verificação pode acontecer depois do limiar. Não limita a duração total de metadados + dados + lotes regionais.
+
+O parser nacional cria Observation por nome de campo, usando o mapeamento ID→medida. A ordem de inserção do dicionário e da resposta deixa de alterar a associação mensal/no ano/12 meses. Gráficos de evolução incluem marcadores para manter visíveis as duas séries em recortes de um mês; diferenças e cálculos decimais permanecem. O seletor de indicador é renderizado antes da validação de A, para não perder sua identidade/estado durante um intervalo inválido.
+
+Esquema 5, quatro transações independentes, bloqueio e CSV atômico permanecem. Novos ensaios cruzam escritor IPCA com escritor INPC, leitura concorrente e interrupção antes do commit; também disputam os dois tipos de CSV em processos separados. [Revisão e evidências](REVISAO-0.6.1.md).
