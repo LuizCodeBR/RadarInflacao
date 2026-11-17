@@ -12,6 +12,9 @@ from .area_report import area_csv_bytes
 from .areas import AREAS, LOCATIONS
 from .errors import RadarError, ValidationError
 from .groups import GROUPS, filter_group_rows
+from .index_report import index_comparison_csv_bytes, index_csv_bytes, inpc_csv_bytes
+from .indices import index_comparisons
+from .inpc import InpcPipeline
 from .model import month, periods
 from .pipeline import GroupPipeline, Pipeline
 from .report import csv_bytes, group_csv_bytes, publish_csv
@@ -47,16 +50,20 @@ def month_argument(value):
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(
-        description="Radar da Inflação — dados oficiais do IPCA nacional"
+        description="Radar da Inflação — dados oficiais do IPCA e INPC nacionais"
     )
     parser.add_argument(
         "--data-dir", type=Path, help="Pasta independente para banco, brutos e histórico"
     )
     sub = parser.add_subparsers(dest="command", required=True)
     demo = sub.add_parser("demo", help="Importa as amostras locais validadas, sem internet")
-    demo.add_argument("--dataset", choices=["all", "national", "groups", "areas"], default="all")
+    demo.add_argument(
+        "--dataset", choices=["all", "national", "groups", "areas", "inpc"], default="all"
+    )
     update = sub.add_parser("update", help="Consulta o IBGE sob demanda")
-    update.add_argument("--dataset", choices=["all", "national", "groups", "areas"], default="all")
+    update.add_argument(
+        "--dataset", choices=["all", "national", "groups", "areas", "inpc"], default="all"
+    )
     update.add_argument(
         "--full", action="store_true", help="Reconcilia desde 2020, incluindo revisões antigas"
     )
@@ -65,7 +72,7 @@ def main(argv=None) -> int:
     quality_export = sub.add_parser("quality-export", help="Exporta qualidade ou mudanças em CSV")
     quality_export.add_argument("--report", choices=["summary", "changes"], default="summary")
     quality_export.add_argument(
-        "--dataset", choices=["all", "national", "groups", "areas"], default="all"
+        "--dataset", choices=["all", "national", "groups", "areas", "inpc"], default="all"
     )
     quality_export.add_argument("--kind", choices=["all", "ADDED", "CHANGED"], default="CHANGED")
     quality_export.add_argument("--group", choices=list(GROUPS))
@@ -75,12 +82,20 @@ def main(argv=None) -> int:
     quality_export.add_argument("--output", type=Path, required=True)
     sub.add_parser("status", help="Mostra cobertura e última execução")
     export = sub.add_parser("export", help="Exporta a base sem substituir arquivo existente")
-    export.add_argument("--dataset", choices=["national", "groups", "areas"], default="national")
+    export.add_argument(
+        "--dataset", choices=["national", "groups", "areas", "inpc", "indices"], default="national"
+    )
     export.add_argument("--groups", nargs="+", choices=list(GROUPS), default=list(GROUPS))
     export.add_argument("--areas", nargs="+", choices=list(AREAS), default=list(AREAS))
     export.add_argument("--from", dest="start", type=month_argument)
     export.add_argument("--to", dest="end", type=month_argument)
     export.add_argument("--output", type=Path, required=True)
+    comparison = sub.add_parser("compare-indices", help="Exporta a comparação A/B IPCA × INPC")
+    comparison.add_argument("--from", dest="start", type=month_argument, required=True)
+    comparison.add_argument("--to", dest="end", type=month_argument, required=True)
+    comparison.add_argument("--from-b", dest="bs", type=month_argument, required=True)
+    comparison.add_argument("--to-b", dest="be", type=month_argument, required=True)
+    comparison.add_argument("--output", type=Path, required=True)
     args = parser.parse_args(argv)
     try:
         if args.command == "quality-demo":
@@ -95,7 +110,8 @@ def main(argv=None) -> int:
             return 0
         repository, pipeline = components(
             args.data_dir,
-            allow_simulation=args.command in ("quality", "quality-export", "status", "export"),
+            allow_simulation=args.command
+            in ("quality", "quality-export", "status", "export", "compare-indices"),
         )
         if args.command in ("quality", "quality-export"):
             from .quality import build_quality
@@ -137,7 +153,12 @@ def main(argv=None) -> int:
         elif args.command in ("demo", "update"):
             group_pipeline = GroupPipeline(repository, project_root() / "sample/groups")
             area_pipeline = AreaPipeline(repository, project_root() / "sample/areas")
-            all_workers = {"national": pipeline, "groups": group_pipeline, "areas": area_pipeline}
+            all_workers = {
+                "national": pipeline,
+                "groups": group_pipeline,
+                "areas": area_pipeline,
+                "inpc": InpcPipeline(repository, project_root() / "sample/inpc"),
+            }
             workers = (
                 list(all_workers.items())
                 if args.dataset == "all"
@@ -163,13 +184,21 @@ def main(argv=None) -> int:
                     )
                 )
                 return 2
-            result = results.get("national", results.get("groups", results.get("areas")))
+            result = next(iter(results.values()))
             if args.dataset == "all":
-                result = {**result, "groups": results["groups"], "areas": results["areas"]}
+                result = {
+                    **result,
+                    "groups": results["groups"],
+                    "areas": results["areas"],
+                    "inpc": results["inpc"],
+                }
         elif args.command == "status":
-            snapshot = repository.snapshot(include_groups=True, include_areas=True)
+            snapshot = repository.snapshot(
+                include_groups=True, include_areas=True, include_indices=True
+            )
             rows = snapshot["rows"]
             result = {
+                "inpc_rows": len(snapshot["indices"]["inpc"]),
                 "areas_rows": len(snapshot["areas"]),
                 "groups_rows": len(snapshot["groups"]),
                 "rows": len(rows),
@@ -178,6 +207,38 @@ def main(argv=None) -> int:
                 "modes": sorted({row["mode"] for row in rows}),
                 "last_run": snapshot["history"][0] if snapshot["history"] else None,
             }
+        elif args.command == "compare-indices" or (
+            args.command == "export" and args.dataset in ("indices", "inpc")
+        ):
+            from .index_storage import index_rows
+
+            with repository.locked() as db:
+                indices = {key: index_rows(db, key) for key in ("ipca", "inpc")}
+            if args.command == "compare-indices":
+                data = index_comparison_csv_bytes(
+                    index_comparisons(indices, args.start, args.end, args.bs, args.be)
+                )
+                count = 4
+            else:
+                rows = (
+                    indices["inpc"]
+                    if args.dataset == "inpc"
+                    else [row for series in indices.values() for row in series]
+                )
+                if not rows:
+                    raise RadarError("Nenhum mês encontrado para exportar.")
+                start = args.start or min(r["period"] for r in rows)
+                end = args.end or max(r["period"] for r in rows)
+                if args.dataset == "indices":
+                    data = index_csv_bytes(indices, start, end)
+                else:
+                    data = inpc_csv_bytes(indices["inpc"], start, end)
+                count = len(periods(start, end))
+            try:
+                publish_csv(args.output, data)
+            except FileExistsError as exc:
+                raise RadarError("O arquivo já existe. Escolha outro destino.") from exc
+            result = {"exported": count, "file": str(args.output.resolve())}
         else:
             with repository.locked() as db:
                 rows = (

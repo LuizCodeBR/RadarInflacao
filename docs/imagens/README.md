@@ -54,3 +54,16 @@ Capturas reais no Chromium local, com a amostra oficial de janeiro/2020 a outubr
 <img src="areas-mobile.png" alt="Análise regional no navegador de celular emulado" width="360">
 
 Capturas regionais atualizadas na revisão 0.5.1, após conferir filtros e os três downloads no navegador. A visualização mobile é emulação, não teste em aparelho físico.
+
+
+## IPCA × INPC — 0.6.0
+
+Capturas reais do Chromium local com as amostras oficiais de janeiro/2020 a outubro/2026. Tela inicial mostra novembro/2024–outubro/2026 e comparação com novembro/2022–outubro/2024. Brasil, tabelas 1737/1736. Desktop 1440 pixels e celular emulado 412 pixels; tabelas largas têm rolagem horizontal.
+
+![Comparador nacional](indices-desktop.png)
+
+![Comparação entre períodos dos índices](indices-comparacao.png)
+
+<img src="indices-mobile.png" alt="Comparador IPCA e INPC no navegador de celular emulado" width="360">
+
+As barras de diferenças positivas e negativas foram verificadas após a correção de escape do nome do campo. Emulação não substitui teste em aparelho físico.

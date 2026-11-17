@@ -1,4 +1,4 @@
-# Arquitetura — Radar da Inflação 0.5.1
+# Arquitetura — Radar da Inflação 0.6.0
 
 ## Escopo e escolhas
 
@@ -170,3 +170,13 @@ Cada mês possui uma identidade de publicação compartilhada pelas localidades;
 O contrato dos metadados regionais deixa de depender das nove categorias de despesas ou da variável peso. As consultas HTTP fixam ausência de redirecionamento e timeout em cada requisição, inclusive quando recebem um cliente HTTP externo. Isso mantém a política do coletor nas três fontes.
 
 Esquema 4 preservado; sem refatoração da coordenação por FileLock nem substituição do DuckDB. [Testes e limites](REVISAO-0.5.1.md).
+
+## Comparador nacional na versão 0.6.0
+
+inpc.py especializa o pipeline existente com tabela 1736/variáveis próprias. model.py recebe mapa explícito de variáveis e tabela para reusar o contrato nacional sem confundir IDs. index_storage.py migra 4→5 e lê os dois índices com estado/dia/janela/finalização de coleta, sem ocultar vínculos inválidos por junção interna.
+
+indices.py revalida as publicações e alinha meses completos para A e B. Não exige igualdade de coleta entre índices diferentes. O snapshot(include_indices=True) lê ambos sob um lock, garantindo um retrato estável das publicações disponíveis; não há transação global de todas as fontes.
+
+index_report.py gera CSV do período com origem dupla e quatro linhas A/B validadas. Tela arredonda a duas casas, CSV mantém cálculo decimal. index_view.py usa dados inline limitados e não muda estado global do Altair. Os dois downloads usam bytes preparados/on_click ignore.
+
+Auditoria/central ganham o conjunto inpc com tabelas e eventos próprios, preservando as anteriores. SQL usa nomes constantes/permitidos e valores parametrizados. Migração, valores, histórico, falhas e interrupção têm testes. [Guia](INDICES.md) · [Validação](VALIDACAO-0.6.0.md).

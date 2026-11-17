@@ -284,7 +284,7 @@ def test_upgrade_schema_1_keeps_original_observations(tmp_path):
     assert snapshot["rows"][0]["monthly"] == Decimal("0.42")
     assert snapshot["groups"] == []
     with repo.locked() as db:
-        assert db.execute("SELECT version FROM schema_version").fetchone() == (4,)
+        assert db.execute("SELECT version FROM schema_version").fetchone() == (5,)
 
 
 def test_group_snapshot_is_stable_during_process_lock(group_rows, repository):

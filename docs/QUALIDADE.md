@@ -86,3 +86,9 @@ Antes de atualizar outra instalação, encerre o aplicativo e preserve data/. Ve
 ## Áreas na versão 0.5.0
 
 O terceiro conjunto Áreas do IPCA inclui as 16 áreas e Brasil da tabela 7060. Tem quatro verificações, histórico por campo e filtro de área, inclusive Brasil. O resumo CSV contém doze verificações nos três conjuntos. O CSV de mudanças acrescenta Area ID e Area; Grupo ID continua específico dos grupos. O limite de 10000 eventos continua por recorte. A demonstração offline da central mantém seus dois cenários sintéticos; o conjunto regional nela fica Sem dados. Para explorar dados regionais oficiais, use Comparar áreas na base principal. [Guia regional](AREAS.md).
+
+## INPC na versão 0.6.0
+
+Quarto conjunto: INPC nacional, com quatro verificações próprias e histórico filtrável por --dataset inpc. CSV da qualidade passa a ter dezesseis linhas; colunas dos relatórios existentes permanecem. Antes de abrir o comparador/importar o conjunto, ele pode aparecer Sem dados.
+
+Primeira amostra INPC cria 246 inclusões. Importação de todas as quatro amostras cria 7626 eventos por campo, sem duplicação nas reconferências. O modo de demonstração de mudanças continua com dois eventos sintéticos nacional/grupos; áreas e INPC ficam vazios nesse cenário. O comparador tem amostra oficial própria e não usa a pasta da simulação.

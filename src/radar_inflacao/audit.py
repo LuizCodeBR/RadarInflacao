@@ -8,15 +8,21 @@ from .audit_contract import validate_filters
 from .errors import ValidationError
 from .model import as_date
 
-DATASETS = {"national": "Índice geral", "groups": "Nove grupos", "areas": "Áreas do IPCA"}
+DATASETS = {
+    "national": "Índice geral",
+    "groups": "Nove grupos",
+    "areas": "Áreas do IPCA",
+    "inpc": "INPC nacional",
+}
 TABLES = {
     "national": ("observation", "ingestion"),
     "groups": ("group_observation", "group_ingestion"),
     "areas": ("area_observation", "area_ingestion"),
+    "inpc": ("inpc_observation", "inpc_ingestion"),
 }
 CHANGES = """(SELECT * FROM data_change UNION ALL
     SELECT dataset,run_id,period,area_key AS group_id,field,kind,old_value,new_value,
-           previous_run_id,recorded_at FROM area_change)"""
+           previous_run_id,recorded_at FROM area_change UNION ALL SELECT * FROM inpc_change)"""
 FIELDS = {
     "monthly": "Variação mensal",
     "year_to_date": "Acumulado no ano",
@@ -112,7 +118,7 @@ def record_changes(db, dataset, current, observations, run_id, recorded_at):
                     )
                 )
     if changes:
-        table = "area_change" if dataset == "areas" else "data_change"
+        table = {"areas": "area_change", "inpc": "inpc_change"}.get(dataset, "data_change")
         db.executemany(f"INSERT INTO {table} VALUES (?,?,?,?,?,?,?,?,?,?)", changes)
     return len(changes)
 
@@ -170,6 +176,7 @@ def read_snapshot(
             "national": repository.rows,
             "groups": repository.group_rows,
             "areas": repository.area_rows,
+            "inpc": repository.inpc_rows,
         }
         rows = readers[code](db)
         table, run_table = TABLES[code]
@@ -244,6 +251,7 @@ def read_snapshot(
             SELECT 'national' AS dataset,* FROM ingestion
             UNION ALL SELECT 'groups' AS dataset,* FROM group_ingestion
             UNION ALL SELECT 'areas' AS dataset,* FROM area_ingestion
+            UNION ALL SELECT 'inpc' AS dataset,* FROM inpc_ingestion
         )
         SELECT c.dataset,c.run_id,strftime(c.period,'%Y-%m') AS period,c.group_id,
                c.field,c.kind,c.old_value,c.new_value,c.previous_run_id,

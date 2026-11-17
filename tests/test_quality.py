@@ -45,8 +45,8 @@ def test_initial_import_checks_counts_and_explicit_absence(quality_repository):
     snapshot = report(quality_repository, kind="all")
     assert snapshot["total_changes"] == 3198  # 82*3 + 738*4, por campo incluído.
     assert not snapshot["truncated"]
-    assert [item["grade"] for item in snapshot["datasets"]] == ["OK", "OK", "EMPTY"]
-    assert [item["count"] for item in snapshot["datasets"]] == [82, 738, 0]
+    assert [item["grade"] for item in snapshot["datasets"]] == ["OK", "OK", "EMPTY", "EMPTY"]
+    assert [item["count"] for item in snapshot["datasets"]] == [82, 738, 0, 0]
     assert "99 campos" in snapshot["datasets"][1]["checks"][1]["detail"]
     assert snapshot["datasets"][0]["checks"][3]["status"] == "INFO"
     assert "sem consulta agora" in snapshot["datasets"][0]["checks"][3]["detail"]
@@ -60,7 +60,7 @@ def test_initial_import_checks_counts_and_explicit_absence(quality_repository):
                 )
             )
         )
-        == 12
+        == 16
     )
 
 
@@ -217,7 +217,7 @@ def test_quality_explains_corruption_without_crashing(quality_repository, query,
 
 def test_empty_database_reports_unknown_without_network(repository):
     snapshot = report(repository)
-    assert [item["grade"] for item in snapshot["datasets"]] == ["EMPTY", "EMPTY", "EMPTY"]
+    assert [item["grade"] for item in snapshot["datasets"]] == ["EMPTY", "EMPTY", "EMPTY", "EMPTY"]
     assert snapshot["changes"] == []
     assert quality_csv_bytes(snapshot).startswith(b"\xef\xbb\xbf")
 
@@ -300,7 +300,7 @@ def test_quality_csv_refuses_formula_in_detail(quality_repository):
 def test_cli_reports_and_exports_without_overwriting(quality_repository, tmp_path, capsys):
     args = ["--data-dir", str(quality_repository.directory)]
     assert main([*args, "quality"]) == 0
-    assert len(json.loads(capsys.readouterr().out)["datasets"]) == 3
+    assert len(json.loads(capsys.readouterr().out)["datasets"]) == 4
     output = tmp_path / "quality.csv"
     assert main([*args, "quality-export", "--output", str(output)]) == 0
     assert output.read_bytes().startswith(b"\xef\xbb\xbf")
@@ -400,6 +400,9 @@ def test_schema_2_upgrade_preserves_rows_and_starts_without_invented_history(qua
     before = quality_repository.snapshot(include_groups=True)
     with quality_repository.locked() as db:
         for table in (
+            "inpc_change",
+            "inpc_observation",
+            "inpc_ingestion",
             "area_change",
             "area_observation",
             "area_dimension",
@@ -411,7 +414,7 @@ def test_schema_2_upgrade_preserves_rows_and_starts_without_invented_history(qua
             db.execute(f"DROP TABLE {table}")
         db.execute("UPDATE schema_version SET version=2")
     snapshot = quality_repository.quality_snapshot(kind="all")
-    assert [d["baseline"]["existing_rows"] for d in snapshot["datasets"]] == [82, 738, 0]
+    assert [d["baseline"]["existing_rows"] for d in snapshot["datasets"]] == [82, 738, 0, 0]
     assert snapshot["changes"] == []
     assert snapshot["datasets"][0]["rows"] == before["rows"]
     assert snapshot["datasets"][1]["rows"] == before["groups"]
@@ -422,6 +425,9 @@ def test_schema_2_upgrade_preserves_rows_and_starts_without_invented_history(qua
 def test_schema_3_migration_failure_is_atomic(quality_repository):
     with quality_repository.locked() as db:
         for table in (
+            "inpc_change",
+            "inpc_observation",
+            "inpc_ingestion",
             "area_change",
             "area_observation",
             "area_dimension",

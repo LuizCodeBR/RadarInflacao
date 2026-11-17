@@ -258,7 +258,7 @@ def test_csv_quotes_do_not_create_additional_cells(quality_repository):
     detail = 'Falha ";=1+1; documento'
     report["datasets"][0]["checks"][0]["detail"] = detail
     records = read_csv(quality_csv_bytes(report))
-    assert len(records) == 12
+    assert len(records) == 16
     assert records[0]["Detalhe"] == detail
     assert all(None not in row for row in records)
 

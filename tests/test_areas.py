@@ -460,6 +460,9 @@ def test_area_view_offline_filters_downloads_and_missing_comparison(area_reposit
 
 
 def _remove_regional_schema(db):
+    for table in ("inpc_change", "inpc_observation", "inpc_ingestion"):
+        db.execute(f"DROP TABLE {table}")
+    db.execute("DELETE FROM audit_baseline WHERE dataset='inpc'")
     for table in ("area_change", "area_observation", "area_dimension", "area_ingestion"):
         db.execute(f"DROP TABLE {table}")
     db.execute("DELETE FROM audit_baseline WHERE dataset='areas'")
@@ -480,7 +483,7 @@ def test_schema_3_to_4_preserves_existing_values_and_history(tmp_path):
     assert after["datasets"][:2] == before["datasets"][:2]
     assert after["datasets"][2]["rows"] == []
     with repository.locked() as db:
-        assert db.execute("SELECT version FROM schema_version").fetchone() == (4,)
+        assert db.execute("SELECT version FROM schema_version").fetchone() == (5,)
 
 
 def test_failed_regional_migration_is_atomic(area_repository):

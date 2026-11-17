@@ -65,3 +65,9 @@ A indicação de disponibilidade depende dos metadados válidos efetivamente obs
 ## Áreas a partir de 0.5.0
 
 A amostra em sample/areas preserva 82 meses × 17 localidades (16 áreas e Brasil), 1394 registros e 187 ausências históricas de 12 meses. Origem 7060/315/7169; três medidas oficiais. As respostas são preservadas em pacote com corpo, URL e hash de cada lote de até 24 meses. A referência brasileira acompanha o lote regional, sem recalcular média de localidades. [Abrangência, métodos, precisão e limites](AREAS.md).
+
+## INPC nacional — versão 0.6.0
+
+Fonte tabela 1736, Brasil/N1, variáveis 44/68/2292 (%). Amostra em sample/inpc: 82 meses, janeiro/2020–outubro/2026, sem ausências nas três medidas. Manifesto com URLs, data e hashes. Os originais das outras amostras permanecem.
+
+IPCA comparado é o nacional da tabela 1737. A diferença sempre é INPC − IPCA. Cada índice mantém publicação, coleta e procedência próprias; o alinhamento exige todos os meses solicitados, sem imputação. [Método e limites](INDICES.md).

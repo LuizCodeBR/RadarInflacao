@@ -66,6 +66,10 @@ def _origin(item):
         return "EMPTY", "Sem procedência para verificar."
     if item["dataset"] == "areas":
         validate_area_snapshot(rows)
+    if item["dataset"] == "inpc":
+        from .indices import validate_index_rows
+
+        validate_index_rows(rows, "inpc")
     for row in rows:
         _provenance(row)
     return "OK", "Modo, data com fuso, hash e vínculos das publicações e do histórico válidos."

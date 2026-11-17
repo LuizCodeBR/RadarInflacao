@@ -119,7 +119,7 @@ def changes_csv_bytes(snapshot):
             or field not in FIELDS
             or row["kind"] not in ("ADDED", "CHANGED")
             or row["run_status"] != "SUCCESS"
-            or (code == "national" and (group != "" or field == "weight"))
+            or (code in ("national", "inpc") and (group != "" or field == "weight"))
             or (code == "groups" and group not in GROUPS)
             or (code == "areas" and (group not in LOCATIONS or field == "weight"))
         ):

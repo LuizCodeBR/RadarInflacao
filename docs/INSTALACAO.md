@@ -67,3 +67,9 @@ Mesmas dependências, sem extensão nova. A opção Comparar áreas prepara sua 
 Encerre o painel e use o pacote completo da nova versão. Preserve a pasta data de sua instalação. Esta revisão usa o mesmo esquema 4 da 0.5.0 e não precisa migrar o banco. Python 3.12 ou 3.13, dependências fixadas e iniciadores permanecem; nenhuma extensão do VS Code ou serviço adicional é necessário.
 
 No computador de desenvolvimento, a base principal foi preservada e os ensaios ocorreram em pastas separadas no D:. [Relatório da revisão](REVISAO-0.5.1.md).
+
+## Atualização para 0.6.0
+
+O comparador IPCA × INPC usa as mesmas versões de Python e dependências. Encerre o aplicativo, preserve data e substitua o pacote fonte completo. Ao abrir, o esquema migra de 4 para 5, adicionando apenas as tabelas do INPC. Código até 0.5.1 não abre esquema 5; guarde uma cópia compatível se precisar reverter.
+
+Nesta máquina foi preservada a cópia D:/Projetos/RadarInflacao/.cache/antes-migracao060. Não exige extensão ou novo software. [Guia dos índices](INDICES.md) · [Validação](VALIDACAO-0.6.0.md).

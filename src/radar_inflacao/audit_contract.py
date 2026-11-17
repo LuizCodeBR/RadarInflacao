@@ -48,7 +48,7 @@ def run_id(value):
 def validate_filters(
     dataset="all", start=None, end=None, kind="CHANGED", group_id=None, area_key=None
 ):
-    if dataset not in ("national", "groups", "areas", "all") or kind not in (
+    if dataset not in ("national", "groups", "areas", "inpc", "all") or kind not in (
         "all",
         "ADDED",
         "CHANGED",

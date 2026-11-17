@@ -44,7 +44,7 @@ class Repository:
         row = db.execute("SELECT version FROM schema_version").fetchall()
         if not row:
             db.execute("INSERT INTO schema_version VALUES (1)")
-        elif row not in ([(1,)], [(2,)], [(3,)], [(4,)]):
+        elif row not in ([(1,)], [(2,)], [(3,)], [(4,)], [(5,)]):
             raise ValidationError(
                 "Esquema de banco incompatível. Preserve a base e use versão compatível."
             )
@@ -66,16 +66,24 @@ class Repository:
           )
         """)
 
-        if row not in ([(2,)], [(3,)], [(4,)]):
+        if row not in ([(2,)], [(3,)], [(4,)], [(5,)]):
             Repository._migrate_groups(db)
-        if row not in ([(3,)], [(4,)]):
+        if row not in ([(3,)], [(4,)], [(5,)]):
             from .audit import migrate
 
             migrate(db)
-        if row != [(4,)]:
+        if row not in ([(4,)], [(5,)]):
             from .area_storage import migrate as migrate_areas
 
             migrate_areas(db)
+        if row != [(5,)]:
+            from .index_storage import migrate
+
+            migrate(db)
+        db.execute(
+            """UPDATE inpc_ingestion SET status='INTERRUPTED',finished_at=current_timestamp,
+                error='Execução interrompida antes da conclusão.' WHERE status='RUNNING'"""
+        )
         db.execute(
             """UPDATE area_ingestion SET status='INTERRUPTED',finished_at=current_timestamp,
                 error='Execução interrompida antes da conclusão.' WHERE status='RUNNING'"""
@@ -121,7 +129,7 @@ class Repository:
         )
         return [dict(zip(names, row, strict=True)) for row in rows]
 
-    def snapshot(self, *, include_groups: bool = False, include_areas: bool = False) -> dict:
+    def snapshot(self, *, include_groups=False, include_areas=False, include_indices=False) -> dict:
         with self.locked() as db:
             rows = self.rows(db)
             history = db.execute("""
@@ -144,6 +152,10 @@ class Repository:
                            status,inserted,updated,unchanged,error
                     FROM area_ingestion ORDER BY started_at DESC,id DESC LIMIT 20
                 """).fetchall()
+            if include_indices:
+                from .index_storage import index_rows
+
+                result["indices"] = {key: index_rows(db, key) for key in ("ipca", "inpc")}
             return result
 
     @staticmethod
@@ -152,6 +164,12 @@ class Repository:
 
         return rows(db)
 
+    @staticmethod
+    def inpc_rows(db):
+        from .index_storage import index_rows
+
+        return index_rows(db, "inpc")
+
     def quality_snapshot(self, **filters) -> dict:
         from .audit import read_snapshot
 
@@ -159,11 +177,15 @@ class Repository:
             return read_snapshot(self, db, **filters)
 
     @staticmethod
-    def upsert(db, rows: list[Observation], run_id: str) -> tuple[int, int, int]:
+    def upsert(
+        db, rows: list[Observation], run_id: str, *, table="observation"
+    ) -> tuple[int, int, int]:
+        if table not in ("observation", "inpc_observation"):
+            raise ValidationError("Tabela de observações não autorizada.")
         inserted = updated = unchanged = 0
         for row in rows:
             current = db.execute(
-                "SELECT monthly,year_to_date,twelve_month FROM observation WHERE period=?",
+                f"SELECT monthly,year_to_date,twelve_month FROM {table} WHERE period=?",
                 [as_date(row.period)],
             ).fetchone()
             values = (row.monthly, row.year_to_date, row.twelve_month)
@@ -174,8 +196,8 @@ class Repository:
             else:
                 updated += 1
             db.execute(
-                """
-              INSERT INTO observation VALUES(?,?,?,?,?)
+                f"""
+              INSERT INTO {table} VALUES(?,?,?,?,?)
               ON CONFLICT(period) DO UPDATE SET monthly=excluded.monthly,
                 year_to_date=excluded.year_to_date,twelve_month=excluded.twelve_month,
                 run_id=excluded.run_id

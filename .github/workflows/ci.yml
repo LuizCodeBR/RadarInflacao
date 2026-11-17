@@ -41,3 +41,6 @@ jobs:
           python -m radar_inflacao --data-dir .cache/smoke quality-export --report changes --kind ADDED --output .cache/smoke-changes.csv
           python -m radar_inflacao --data-dir .cache/smoke export --dataset areas --areas N7:3501 N6:5300108 --from 2024-01 --to 2024-03 --output .cache/smoke-areas.csv
           python -m radar_inflacao --data-dir .cache/smoke quality-export --report changes --dataset areas --area N7:3501 --kind ADDED --output .cache/smoke-area-history.csv
+          python -m radar_inflacao --data-dir .cache/smoke export --dataset indices --from 2024-01 --to 2024-03 --output .cache/smoke-indices.csv
+          python -m radar_inflacao --data-dir .cache/smoke compare-indices --from 2024-01 --to 2024-03 --from-b 2023-01 --to-b 2023-03 --output .cache/smoke-indices-ab.csv
+          python -m radar_inflacao --data-dir .cache/smoke quality-export --report changes --dataset inpc --kind ADDED --output .cache/smoke-inpc-history.csv

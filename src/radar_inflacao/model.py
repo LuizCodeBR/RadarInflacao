@@ -66,17 +66,17 @@ def read_json(raw: bytes):
         raise ValidationError("A fonte não retornou JSON válido.") from exc
 
 
-def validate_metadata(raw: bytes) -> str:
+def validate_metadata(raw: bytes, *, table=1737, variable_map=VARIABLES) -> str:
     data = read_json(raw)
     try:
-        _require(isinstance(data, dict) and type(data["id"]) is int and data["id"] == 1737)
+        _require(isinstance(data, dict) and type(data["id"]) is int and data["id"] == table)
         _require(data["periodicidade"]["frequencia"] == "mensal")
         _require(data["nivelTerritorial"]["Administrativo"] == ["N1"])
         variables = data["variaveis"]
         _require(isinstance(variables, list))
         ids = [str(v["id"]) for v in variables]
         _require(len(ids) == len(set(ids)))
-        for identifier in VARIABLES:
+        for identifier in variable_map:
             _require(any(str(v["id"]) == identifier and v["unidade"] == "%" for v in variables))
         end = str(data["periodicidade"]["fim"])
         _require(re.fullmatch(r"\d{6}", end))
@@ -97,16 +97,18 @@ class Observation:
     twelve_month: Decimal
 
 
-def parse_observations(raw: bytes, expected: list[str]) -> list[Observation]:
+def parse_observations(
+    raw: bytes, expected: list[str], *, variable_map=VARIABLES
+) -> list[Observation]:
     if not expected or expected != periods(expected[0], expected[-1]):
         raise ValidationError("Os meses esperados precisam formar um intervalo contínuo.")
     payload = read_json(raw)
     values: dict[str, dict[str, Decimal]] = {}
     try:
-        _require(isinstance(payload, list) and len(payload) == len(VARIABLES))
+        _require(isinstance(payload, list) and len(payload) == len(variable_map))
         for variable in payload:
             identifier = variable["id"]
-            _require(identifier in VARIABLES and identifier not in values)
+            _require(identifier in variable_map and identifier not in values)
             _require(variable["unidade"] == "%")
             results = variable["resultados"]
             _require(len(results) == 1 and results[0]["classificacoes"] == [])
@@ -119,18 +121,20 @@ def parse_observations(raw: bytes, expected: list[str]) -> list[Observation]:
             _require(set(rows) == {m.replace("-", "") for m in expected})
             parsed = {}
             for period, value in rows.items():
-                _require(isinstance(value, str) and re.fullmatch(r"-?\d{1,6}(?:\.\d{1,6})?", value))
+                _require(
+                    isinstance(value, str) and re.fullmatch(r"-?[0-9]{1,6}(?:\.[0-9]{1,6})?", value)
+                )
                 number = Decimal(value)
                 _require(Decimal("-100") <= number <= Decimal("999999.999999"))
                 parsed[period[:4] + "-" + period[4:]] = number
             values[identifier] = parsed
-        _require(set(values) == set(VARIABLES))
+        _require(set(values) == set(variable_map))
     except (ValueError, KeyError, TypeError, AttributeError) as exc:
         raise ValidationError(
             "Dados inconsistentes: confira medidas, Brasil, unidade %, meses e valores. "
             "Ausência de dado não é tratada como zero."
         ) from exc
-    return [Observation(m, values["63"][m], values["69"][m], values["2265"][m]) for m in expected]
+    return [Observation(m, *(values[key][m] for key in variable_map)) for m in expected]
 
 
 def as_date(value: str) -> date:

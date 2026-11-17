@@ -2,11 +2,12 @@ import httpx
 import pytest
 
 from radar_inflacao.errors import SourceError
+from radar_inflacao.inpc import InpcSource
 from radar_inflacao.model import MAX_BYTES
 from radar_inflacao.source import GroupSource, IbgeSource
 
 
-@pytest.fixture(params=[IbgeSource, GroupSource])
+@pytest.fixture(params=[IbgeSource, GroupSource, InpcSource])
 def source_type(request):
     return request.param
 

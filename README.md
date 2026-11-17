@@ -1,12 +1,12 @@
 # Radar da Inflação
 
-Pipeline de dados públicos do **IPCA nacional e das 16 áreas pesquisadas**, com Python, SQL/DuckDB e painel Streamlit. Coleta dados do IBGE, valida o contrato da fonte, preserva a última base válida e registra origem, hash e resultado de cada execução.
+Pipeline de dados públicos do **IPCA e INPC nacionais, nove grupos e 16 áreas do IPCA**, com Python, SQL/DuckDB e painel Streamlit. Coleta dados do IBGE, valida o contrato da fonte, preserva a última base válida e registra origem, hash e resultado de cada execução.
 
-**Versão 0.5.1 · execução local · sem conta, chave de API ou recurso pago.**
+**Versão 0.6.0 · execução local · sem conta, chave de API ou recurso pago.**
 
 ![Painel do Radar da Inflação](docs/imagens/painel-desktop.png)
 
-A revisão **0.5.1** reforça a validação da procedência regional antes de gráficos, ranking, comparações e CSV. Área e Brasil do mesmo mês precisam pertencer à mesma coleta concluída. Mantém o esquema 4, os formatos de CSV e as dependências da 0.5.0. [Correções, testes e limites](docs/REVISAO-0.5.1.md).
+A versão **0.6.0** acrescenta a comparação nacional IPCA × INPC, gráficos de evolução/diferenças, comparação A/B, CSV e INPC na central de qualidade. Inclui amostra offline desde janeiro/2020 e migração para esquema 5. [Guia do comparador](docs/INDICES.md) · [Validação](docs/VALIDACAO-0.6.0.md).
 
 ## Experimentar no Windows
 
@@ -46,6 +46,9 @@ O iniciador prepara o ambiente e abre o mesmo painel local. A validação realiz
 
 ## O que funciona
 
+- Comparador nacional IPCA × INPC: três medidas oficiais, evolução e diferenças INPC − IPCA em pontos percentuais.
+- Comparação A/B com acumulado estimado, janelas oficiais e dois CSVs nacionais com métodos/origem identificados.
+- Amostra real do INPC: 82 registros, janeiro/2020 a outubro/2026; atualização e histórico próprios.
 - Comparação das 16 áreas do IPCA com o Brasil: evolução, ranking mensal, diferenças em pontos percentuais e comparação A/B.
 - Três CSVs regionais com referência oficial do Brasil e procedência dos dados.
 - Amostra regional offline: 1394 registros, 82 meses × (16 áreas + Brasil), tabela 7060.
@@ -60,7 +63,7 @@ O iniciador prepara o ambiente e abre o mesmo painel local. A validação realiz
 - CSV da qualidade e das mudanças filtradas; demonstração offline isolada.
 - Análise dos nove grupos: evolução, ranking mensal, peso, comparação A/B e três CSVs.
 - Amostra dos grupos com 738 registros (82 meses × nove grupos) e ausência histórica identificada.
-- Migração automática dos esquemas 1/2/3 para 4, preservando dados e histórico anteriores.
+- Migração automática dos esquemas 1/2/3/4 para 5, preservando dados e histórico anteriores.
 - CSV UTF-8 com BOM, ponto e vírgula e vírgula decimal.
 - Atualização sob demanda pela API do IBGE.
 - Reconsulta dos últimos 24 meses existentes e busca de meses novos, sem duplicação.
@@ -116,6 +119,25 @@ Os acumulados são os divulgados pelo IBGE; não são calculados somando taxas m
 
 A [amostra](sample/manifest.json) registra URL, momento da obtenção e hashes dos dados/metadados. Os números do período continuam sendo os publicados pela fonte; não se trata de uma previsão ou medição de preços de produtos.
 
+## Comparar IPCA e INPC — 0.6.0
+
+Em Análise, escolha **IPCA × INPC**. A primeira abertura importa a amostra do INPC sem consultar a rede. Escolha os meses e a medida: mensal, no ano ou em 12 meses. Confira os dois gráficos, a diferença INPC − IPCA e o CSV do período com procedência independente de cada índice.
+
+Compare com período anterior, ano anterior ou intervalo manual. O acumulado do intervalo é estimado pela composição das taxas mensais; as demais medidas são as oficiais do último mês de cada período. A tabela e o CSV mostram IPCA/INPC em A e B, diferenças entre índices e A − B de cada índice.
+
+As coberturas são informadas separadamente. Falta de mês impede o recorte, sem preencher zero ou encurtar silenciosamente. O INPC usa tabela 1736 e variáveis próprias; o IPCA nacional mantém a tabela 1737. Não se misturam com a referência regional da 7060.
+
+![Comparação dos índices](docs/imagens/indices-desktop.png)
+
+~~~powershell
+.\.venv\Scripts\python.exe -m radar_inflacao demo --dataset inpc
+.\.venv\Scripts\python.exe -m radar_inflacao update --dataset inpc
+.\.venv\Scripts\python.exe -m radar_inflacao export --dataset indices --from 2024-01 --to 2024-03 --output exports\indices.csv
+.\.venv\Scripts\python.exe -m radar_inflacao compare-indices --from 2024-01 --to 2024-03 --from-b 2023-01 --to-b 2023-03 --output exports\indices-ab.csv
+~~~
+
+O comando de atualização e o botão do painel incluem agora os quatro conjuntos, com resultado individual. A central tem dezesseis verificações, quatro por conjunto. Antes de importar/abrir o INPC, ele pode aparecer Sem dados. [Guia, método e limites](docs/INDICES.md).
+
 ## Explorar os nove grupos
 
 Em Análise, escolha Grupos de despesas. Selecione as categorias e o período A, consulte evolução e ranking mensal e escolha B para comparar. Há CSV do período, do ranking e da comparação. O ranking é de taxas; o peso é uma medida diferente da contribuição ao índice.
@@ -144,7 +166,7 @@ A comparação A/B mantém as janelas oficiais e identifica o acumulado do inter
 .\.venv\Scripts\python.exe -m radar_inflacao export --dataset areas --areas N7:3501 N6:5300108 --from 2024-01 --to 2024-03 --output exports\areas.csv
 ~~~
 
-O botão Atualizar pelo IBGE e os comandos demo/update sem --dataset agora incluem os três conjuntos. Falhas de um conjunto são informadas sem atribuir sucesso aos demais indevidamente. O lote regional publica suas 16 áreas e o Brasil numa única transação.
+O botão Atualizar pelo IBGE e os comandos demo/update sem --dataset agora incluem os quatro conjuntos. Falhas de um conjunto são informadas sem atribuir sucesso aos demais indevidamente. O lote regional publica suas 16 áreas e o Brasil numa única transação.
 
 A versão 0.5.0 migra o banco para esquema 4, preservando os conjuntos anteriores. Encerre o aplicativo e preserve data/ antes de atualizar outra instalação. Versões até 0.4.1 recusam esquema 4.
 
@@ -152,7 +174,7 @@ A versão 0.5.0 migra o banco para esquema 4, preservando os conjuntos anteriore
 
 ## Qualidade, atualização e histórico — 0.4.1
 
-Em Análise, escolha **Qualidade e atualização**. A central mostra cobertura, taxas/pesos/ausências, procedência, última tentativa e última publicação concluída, separadamente para o índice geral e os nove grupos. As verificações usam o banco local; não consultam a internet ao abrir filtros.
+Em Análise, escolha **Qualidade e atualização**. A central mostra cobertura, taxas/pesos/ausências, procedência, última tentativa e última publicação concluída, separadamente para IPCA nacional, grupos, áreas e INPC nacional. As verificações usam o banco local; não consultam a internet ao abrir filtros.
 
 A disponibilidade corresponde aos últimos metadados registrados: a tela distingue amostra, consulta e simulação, com data. Uma falha após consultar metadados pode avisar que existe mês pendente, sem fazer a base anterior parecer recém-atualizada.
 
@@ -171,9 +193,9 @@ Os filtros por conjunto, evento, mês e grupo afetam o histórico. Há CSV da qu
 .\.venv\Scripts\python.exe -m radar_inflacao quality-export --report changes --kind CHANGED --output exports\mudancas.csv
 ~~~
 
-Python e dependências permanecem. A versão 0.5.0 migra para esquema 4, preservando o histórico introduzido na 0.4.0. Antes de atualizar uma instalação própria, encerre o aplicativo e preserve a pasta data. Versões até 0.4.1 não abrem o esquema 4.
+Python e dependências permanecem. A versão 0.6.0 usa o esquema 5, preservando dados e histórico anteriores. Antes de atualizar outra instalação, encerre o aplicativo e preserve data. Código até 0.5.1 não abre esquema 5; confira o [guia de instalação](docs/INSTALACAO.md).
 
-**420 testes aprovados no Windows / Python 3.13 e 3.12**, incluindo 49 regressões da revisão regional. Consulte os resultados e limites da [revisão 0.5.1](docs/REVISAO-0.5.1.md).
+**490 testes aprovados no Windows / Python 3.13 e 3.12**, incluindo os 420 anteriores, 62 do INPC/comparador e 8 cenários do coletor aplicados ao INPC. Após a correção visual, os 62 foram repetidos e aprovados em ambos. [Resultados e limites](docs/VALIDACAO-0.6.0.md).
 
 Na revisão 0.4.1, vínculos inválidos deixam de desaparecer do histórico; publicação, procedência e disponibilidade são revalidadas. CSV incompleto, duplicado ou divergente dos filtros é recusado. A demonstração tem verificações de pasta/banco e não pode receber atualizações pela CLI nem ser usada como base principal do painel. Não há nova migração ou dependência.
 
@@ -216,7 +238,7 @@ Os gráficos não alteram configurações globais entre sessões. Se um acumulad
 
 ~~~mermaid
 flowchart LR
-    IBGE[API IBGE / tabelas 1737 e 7060] --> COLETA[Cliente HTTP]
+    IBGE[API IBGE / tabelas 1737, 1736 e 7060] --> COLETA[Cliente HTTP]
     AMOSTRA[Amostra local identificada] --> VALIDACAO[Validação]
     COLETA --> VALIDACAO
     VALIDACAO --> RAW[Arquivos brutos / SHA-256]
@@ -227,7 +249,7 @@ flowchart LR
     DB --> CSV[CSV / procedência]
 ~~~
 
-[Arquitetura e decisões](docs/ARQUITETURA.md) · [Revisão e testes atuais](docs/REVISAO-0.5.1.md) · [Instalação e uso](docs/INSTALACAO.md) · [Dados e limites](docs/DADOS.md).
+[Arquitetura e decisões](docs/ARQUITETURA.md) · [Testes atuais](docs/VALIDACAO-0.6.0.md) · [Instalação e uso](docs/INSTALACAO.md) · [Dados e limites](docs/DADOS.md).
 
 ## Pastas e armazenamento
 
@@ -243,8 +265,8 @@ Os iniciadores mantêm ambiente, caches e temporários dentro da pasta do projet
 
 ## Limites da versão atual
 
-Séries nacionais desde 2020, tabelas 1737/7060 do IBGE e arquivo local. Atualizações e leituras da aplicação usam o mesmo bloqueio; outra operação em andamento pode pedir nova tentativa. Não é um servidor analítico para vários usuários ou gravação distribuída.
+Séries nacionais desde 2020, tabelas 1737/1736/7060 do IBGE e arquivo local. Atualizações e leituras da aplicação usam o mesmo bloqueio; outra operação em andamento pode pedir nova tentativa. Não é um servidor analítico para vários usuários ou gravação distribuída.
 
 O projeto oferece painel web local responsivo; não publica link externo ou aplicativo nativo nesta entrega. Falhas ficam no histórico, e uma interrupção é sinalizada na próxima abertura. Arquivos brutos não substituem um backup da pasta de dados. Não há tarefa agendada ou serviço pago.
 
-**Critério de conclusão da primeira etapa:** amostra + coleta real + validação + persistência + filtros/CSV + testes + execução simples. A versão 0.5.0 acrescenta as 16 áreas pesquisadas. Novas fontes e automações ficam para uma decisão separada.
+**Critério de conclusão da primeira etapa:** amostra + coleta real + validação + persistência + filtros/CSV + testes + execução simples. A versão 0.6.0 inclui o comparador IPCA × INPC. Novas fontes e automações ficam para uma decisão separada.

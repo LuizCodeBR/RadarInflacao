@@ -19,6 +19,8 @@ from radar_inflacao.area_view import render_areas
 from radar_inflacao.cli import components, project_root
 from radar_inflacao.errors import RadarError
 from radar_inflacao.group_view import render_groups
+from radar_inflacao.index_view import render_indices
+from radar_inflacao.inpc import InpcPipeline
 from radar_inflacao.model import BASE_MONTH, next_month
 from radar_inflacao.pipeline import GroupPipeline
 from radar_inflacao.quality_view import render_quality
@@ -26,7 +28,7 @@ from radar_inflacao.report import comparison_csv_bytes, csv_bytes
 
 st.set_page_config(page_title="Radar da Inflação", page_icon="📊", layout="wide")
 st.title("Radar da Inflação")
-st.caption("IPCA nacional · Dados oficiais do IBGE · Python + SQL")
+st.caption("IPCA e INPC · Dados oficiais do IBGE · Python + SQL")
 st.markdown(
     "Explore a evolução dos preços no Brasil com uma base local verificável. "
     "A coleta acontece somente quando você solicita."
@@ -34,7 +36,13 @@ st.markdown(
 
 view = st.radio(
     "Análise",
-    ["Índice geral", "Grupos de despesas", "Comparar áreas", "Qualidade e atualização"],
+    [
+        "Índice geral",
+        "Grupos de despesas",
+        "Comparar áreas",
+        "IPCA × INPC",
+        "Qualidade e atualização",
+    ],
     horizontal=True,
     key="view",
 )
@@ -42,18 +50,25 @@ try:
     repository, pipeline = components()
     group_pipeline = GroupPipeline(repository, project_root() / "sample/groups")
     area_pipeline = AreaPipeline(repository, project_root() / "sample/areas")
+    inpc_pipeline = InpcPipeline(repository, project_root() / "sample/inpc")
+    if view == "IPCA × INPC":
+        inpc_pipeline.ensure_demo()
     if view == "Comparar áreas":
         area_pipeline.ensure_demo()
     pipeline.ensure_demo()
     group_pipeline.ensure_demo()
-    snapshot = repository.snapshot(include_groups=True, include_areas=view == "Comparar áreas")
+    snapshot = repository.snapshot(
+        include_groups=True,
+        include_areas=view == "Comparar áreas",
+        include_indices=view == "IPCA × INPC",
+    )
 except RadarError as error:
     st.error(str(error))
     st.stop()
 
 with st.sidebar:
     st.header("Dados e atualização")
-    st.markdown("**Fonte:** IBGE / SIDRA · tabelas 1737 e 7060 · Brasil")
+    st.markdown("**Fonte:** IBGE / SIDRA · tabelas 1737, 1736 e 7060 · Brasil")
     st.link_button("Consultar a fonte", "https://sidra.ibge.gov.br/tabela/1737")
     st.caption("Atualização padrão: revisita 24 meses e busca meses novos.")
     full = st.checkbox("Reconferir toda a série desde 2020", key="full_refresh")
@@ -69,6 +84,7 @@ with st.sidebar:
                 ("Índice geral", pipeline),
                 ("Grupos", group_pipeline),
                 ("Áreas", area_pipeline),
+                ("INPC", inpc_pipeline),
             ]:
                 try:
                     result = worker.update(full=full)
@@ -93,6 +109,10 @@ for error in st.session_state.pop("update_errors", []):
 if view == "Qualidade e atualização":
     render_quality(repository, project_root())
     st.caption(f"Radar da Inflação {__version__} · Central local, sem consulta automática.")
+    st.stop()
+if view == "IPCA × INPC":
+    render_indices(snapshot["indices"])
+    st.caption(f"Radar da Inflação {__version__} · Comparação nacional, com fontes separadas.")
     st.stop()
 if view == "Comparar áreas":
     render_areas(snapshot["areas"], snapshot["areas_history"])
