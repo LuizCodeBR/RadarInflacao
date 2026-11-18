@@ -502,6 +502,7 @@ def test_real_inpc_process_snapshot_and_reports_stay_consistent(index_repository
 
     prepared = exports(indices)
     script = r"""
+import os
 import sys
 from pathlib import Path
 sys.path.insert(0,sys.argv[2])
@@ -513,7 +514,8 @@ original=worker.publish
 def pause(db,rows,run_id):
     result=original(db,rows,run_id)
     print('UNCOMMITTED',flush=True)
-    sys.stdin.readline()
+    if sys.stdin.readline() != 'COMMIT\n':
+        os._exit(73)
     return result
 worker.publish=pause
 print(worker.update()['status'],flush=True)
@@ -531,11 +533,11 @@ print(worker.update()['status'],flush=True)
             index_repository.snapshot(include_indices=True)
         assert exports(indices) == prepared
         if finish == "commit":
-            out, err = process.communicate("\n", timeout=30)
+            out, err = process.communicate("COMMIT\n", timeout=30)
             assert process.returncode == 0 and "SUCCESS" in out, err
         else:
-            process.kill()
-            process.communicate(timeout=30)
+            process.communicate("CRASH\n", timeout=30)
+            assert process.returncode == 73
     finally:
         if process.poll() is None:
             process.kill()

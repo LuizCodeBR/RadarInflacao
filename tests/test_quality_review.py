@@ -298,6 +298,7 @@ def test_national_publication_keeps_quality_and_history_atomic(quality_repositor
     before = quality_repository.quality_snapshot(kind="all")
     exports = (quality_csv_bytes(build_quality(before)), changes_csv_bytes(before))
     script = r"""
+import os
 import json,sys
 from pathlib import Path
 sys.path.insert(0,sys.argv[2])
@@ -309,7 +310,8 @@ class PausingRepository(Repository):
     def upsert(self, db, rows, run_id):
         counts=super().upsert(db,rows,run_id)
         print('UNCOMMITTED',flush=True)
-        sys.stdin.readline()
+        if sys.stdin.readline() != 'COMMIT\n':
+            os._exit(73)
         return counts
 source=Source(json.loads((sample/'ibge-1737.json').read_bytes()),
               (sample/'metadata-1737.json').read_bytes(),changed=True)
@@ -330,11 +332,11 @@ print(result['status'],flush=True)
         assert quality_csv_bytes(build_quality(before)) == exports[0]
         assert changes_csv_bytes(before) == exports[1]
         if finish == "commit":
-            output, error = process.communicate("\n", timeout=30)
+            output, error = process.communicate("COMMIT\n", timeout=30)
             assert process.returncode == 0 and "SUCCESS" in output, error
         else:
-            process.kill()
-            process.communicate(timeout=30)
+            process.communicate("CRASH\n", timeout=30)
+            assert process.returncode == 73
     finally:
         if process.poll() is None:
             process.kill()
@@ -413,6 +415,7 @@ def test_concurrent_demo_preparation_is_exclusive_and_crash_is_preserved(tmp_pat
 
     shutil.copytree(ROOT / "sample", tmp_path / "sample")
     script = r"""
+import os
 import sys
 from pathlib import Path
 from radar_inflacao.pipeline import Pipeline
@@ -421,7 +424,8 @@ original=Pipeline.demo
 def pause(self):
     result=original(self)
     print('PREPARING',flush=True)
-    sys.stdin.readline()
+    if sys.stdin.readline() != 'COMMIT\n':
+        os._exit(73)
     return result
 Pipeline.demo=pause
 prepare_demo(Path(sys.argv[1]))
@@ -437,8 +441,8 @@ prepare_demo(Path(sys.argv[1]))
         assert _line(process) == "PREPARING"
         with pytest.raises(BusyError):
             prepare_demo(tmp_path)
-        process.kill()
-        process.communicate(timeout=30)
+        process.communicate("CRASH\n", timeout=30)
+        assert process.returncode == 73
     finally:
         if process.poll() is None:
             process.kill()

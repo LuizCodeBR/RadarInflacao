@@ -311,6 +311,7 @@ def test_brazil_and_area_update_is_atomic_and_all_prepared_exports_stay_stable(
     rows = before["datasets"][2]["rows"]
     prepared, history = exports(rows), changes_csv_bytes(before)
     script = r"""
+import os
 import json,sys
 from pathlib import Path
 sys.path.insert(0,sys.argv[2])
@@ -337,7 +338,8 @@ original=area_storage.upsert
 def pause(db,rows,run_id):
     result=original(db,rows,run_id)
     print('UNCOMMITTED',flush=True)
-    sys.stdin.readline()
+    if sys.stdin.readline() != 'COMMIT\n':
+        os._exit(73)
     return result
 area_storage.upsert=pause
 result=AreaPipeline(Repository(Path(sys.argv[1])),SAMPLE,Both(changed=True)).update()
@@ -360,11 +362,11 @@ print(result['status'],flush=True)
         assert source.requested is None
         assert exports(rows) == prepared and changes_csv_bytes(before) == history
         if finish == "commit":
-            out, err = process.communicate("\n", timeout=30)
+            out, err = process.communicate("COMMIT\n", timeout=30)
             assert process.returncode == 0 and "SUCCESS" in out, err
         else:
-            process.kill()
-            process.communicate(timeout=30)
+            process.communicate("CRASH\n", timeout=30)
+            assert process.returncode == 73
     finally:
         if process.poll() is None:
             process.kill()

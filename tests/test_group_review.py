@@ -247,6 +247,7 @@ def test_real_group_pipeline_commit_or_crash_preserves_snapshot(
     old_exports = (group_csv_bytes(before["groups"]), group_csv_bytes(ranking),
                    group_comparison_csv_bytes(comparison))
     script = r"""
+import os
 from pathlib import Path
 import sys
 sys.path.insert(0, sys.argv[2])
@@ -257,7 +258,8 @@ class PausingRepository(Repository):
     def upsert_groups(self, db, rows, run_id):
         first = super().upsert_groups(db, rows[-9:], run_id)
         print('PARTIAL_TRANSACTION', flush=True)
-        sys.stdin.readline()
+        if sys.stdin.readline() != 'COMMIT\n':
+            os._exit(73)
         rest = super().upsert_groups(db, rows[:-9], run_id)
         return tuple(a+b for a,b in zip(first, rest))
 result = GroupPipeline(PausingRepository(Path(sys.argv[1])), SAMPLE,
@@ -280,11 +282,11 @@ print(result['status'], flush=True)
         assert old_exports == (group_csv_bytes(before["groups"]), group_csv_bytes(ranking),
                                group_comparison_csv_bytes(comparison))
         if finish == "commit":
-            output, error = process.communicate("\n", timeout=30)
+            output, error = process.communicate("COMMIT\n", timeout=30)
             assert process.returncode == 0 and "SUCCESS" in output, error
         else:
-            process.kill()
-            process.communicate(timeout=30)
+            process.communicate("CRASH\n", timeout=30)
+            assert process.returncode == 73
     finally:
         if process.poll() is None:
             process.kill()

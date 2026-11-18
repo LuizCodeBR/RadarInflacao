@@ -29,7 +29,7 @@ jobs:
           python -m pip install --no-deps -e .
       - name: Verificar estilo e regras sem API externa
         run: |
-          python -m ruff check src tests app.py
+          python -m ruff check src tests app.py scripts/package_demo.py
           python -m pytest
       - name: Verificar CLI e importação sem duplicação
         run: |
@@ -44,3 +44,7 @@ jobs:
           python -m radar_inflacao --data-dir .cache/smoke export --dataset indices --from 2024-01 --to 2024-03 --output .cache/smoke-indices.csv
           python -m radar_inflacao --data-dir .cache/smoke compare-indices --from 2024-01 --to 2024-03 --from-b 2023-01 --to-b 2023-03 --output .cache/smoke-indices-ab.csv
           python -m radar_inflacao --data-dir .cache/smoke quality-export --report changes --dataset inpc --kind ADDED --output .cache/smoke-inpc-history.csv
+      - name: Gerar demonstração HTML e ZIP sem banco ou API
+        run: |
+          python -m radar_inflacao demo-html --output .cache/smoke-demo.html
+          python scripts/package_demo.py --output-dir .cache/smoke-demo-package

@@ -1,10 +1,28 @@
 # Radar da Inflação
 
+**[Baixar demonstração offline 0.7.0 (ZIP, cerca de 20 KB)](https://github.com/LuizCodeBR/RadarInflacao/releases/download/v0.7.0/RadarInflacao-Demo-0.7.0.zip)** · [Página da versão](https://github.com/LuizCodeBR/RadarInflacao/releases/tag/v0.7.0)
+
+Compare IPCA × INPC com filtros, gráficos e CSV **sem Python, instalação, conta ou internet depois do download**.
+
+1. **Baixe** `RadarInflacao-Demo-0.7.0.zip`. Você pode salvar no D:.
+2. **Extraia** o ZIP. No Windows, clique com o botão direito e escolha **Extrair Tudo**.
+3. **Abra** a pasta extraída e dê dois cliques em `ABRIR-DEMONSTRACAO.html` para abrir no navegador.
+
+Escolha o mês inicial, o final e o indicador. Use **Baixar CSV do período** para exportar; escolha o D: ao salvar se quiser manter os arquivos nessa unidade. Mantenha JavaScript habilitado e abra o HTML somente depois de extrair o ZIP.
+
+**Experimente:** selecione outubro/2026 nos dois filtros e **Variação mensal**. A amostra mostra IPCA **0,14%**, INPC **0,22%** e diferença INPC − IPCA **+0,08 p.p.**
+
+A demonstração inclui uma **amostra fixa de janeiro/2020 a outubro/2026**, identificada na tela, sem atualização automática. O ZIP contém apenas HTML e instruções. [Guia completo](docs/OFFLINE.md) · [Validação da versão](docs/VALIDACAO-0.7.0.md).
+
+![Demonstração offline com filtros, indicadores e gráficos de IPCA e INPC](docs/imagens/offline-desktop.png)
+
+## Aplicativo completo
+
 Como a inflação medida pelo IPCA se compara à do INPC no mesmo mês? O Radar permite explorar os dois índices nacionais, os nove grupos de despesas e as 16 áreas do IPCA com dados públicos do IBGE. O painel roda no navegador, no seu computador.
 
 O projeto usa **Python, SQL com DuckDB e Streamlit**. A cada atualização, o pipeline confere a estrutura e a origem dos dados, registra o que mudou e preserva a última base válida se a coleta falhar.
 
-**[Baixar a versão 0.6.1 (ZIP)](https://github.com/LuizCodeBR/RadarInflacao/releases/download/v0.6.1/RadarInflacao-0.6.1-fonte.zip)** · [Notas da versão](https://github.com/LuizCodeBR/RadarInflacao/releases/tag/v0.6.1) · [Resultados dos testes da versão](https://github.com/LuizCodeBR/RadarInflacao/actions/runs/44188377708)
+**[Baixar código-fonte completo 0.7.0 (ZIP, requer Python)](https://github.com/LuizCodeBR/RadarInflacao/archive/refs/tags/v0.7.0.zip)** · [Notas da versão](https://github.com/LuizCodeBR/RadarInflacao/releases/tag/v0.7.0) · [Testes automatizados](https://github.com/LuizCodeBR/RadarInflacao/actions/workflows/ci.yml)
 
 ![Painel do comparador nacional com a evolução do IPCA e do INPC e a diferença entre os índices em pontos percentuais](docs/imagens/indices-desktop.png)
 
@@ -48,7 +66,7 @@ bash iniciar.sh
 RADAR_PYTHON=python3.13 bash iniciar.sh
 ~~~
 
-O GitHub Actions verificou a versão 0.6.1 em Windows e Ubuntu, com Python 3.12 e 3.13 em ambos. O iniciador também está disponível para macOS, cuja execução não foi verificada nesta versão. [Ver as quatro combinações testadas](https://github.com/LuizCodeBR/RadarInflacao/actions/runs/44188377708).
+A verificação automatizada cobre Windows e Ubuntu, com Python 3.12 e 3.13 em ambos. Consulte o resultado da versão nos [testes automatizados](https://github.com/LuizCodeBR/RadarInflacao/actions/workflows/ci.yml). O iniciador também está disponível para macOS, cuja execução não foi verificada nesta versão.
 
 ## O que funciona
 

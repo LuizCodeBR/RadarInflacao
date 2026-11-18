@@ -1,5 +1,7 @@
 # Instalação e uso
 
+Para experimentar apenas IPCA × INPC sem instalar Python, baixe e extraia o [ZIP da demonstração 0.7.0](https://github.com/LuizCodeBR/RadarInflacao/releases/download/v0.7.0/RadarInflacao-Demo-0.7.0.zip) e abra `ABRIR-DEMONSTRACAO.html`. [Instruções da demonstração offline](OFFLINE.md). As instruções abaixo se aplicam ao aplicativo completo.
+
 ## Neste computador
 
 Python 3.13.14 gerenciado pelo uv já existente, instalado em D:\Ferramentas\Python\uv-managed. Ambiente em D:\Projetos\RadarInflacao\.venv. Nenhuma alteração permanente do PATH foi necessária.

@@ -258,6 +258,7 @@ def test_ipca_writer_blocks_inpc_writer_and_new_reader_but_keeps_prepared_csv(
 
     ready = exports(before)
     script = r"""
+import os
 import sys,json
 from pathlib import Path
 sys.path.insert(0,sys.argv[2])
@@ -272,7 +273,8 @@ original=worker.publish
 def pause(db,rows,run_id):
     counts=original(db,rows,run_id)
     print('UNCOMMITTED',flush=True)
-    sys.stdin.readline()
+    if sys.stdin.readline() != 'COMMIT\n':
+        os._exit(73)
     return counts
 worker.publish=pause
 print(worker.update()['status'],flush=True)
@@ -292,11 +294,11 @@ print(worker.update()['status'],flush=True)
             InpcPipeline(repo, SAMPLE, FakeInpc(changed=True)).update()
         assert exports(before) == ready
         if finish == "commit":
-            out, err = process.communicate("\n", timeout=30)
+            out, err = process.communicate("COMMIT\n", timeout=30)
             assert process.returncode == 0 and "SUCCESS" in out, err
         else:
-            process.kill()
-            process.communicate(timeout=30)
+            process.communicate("CRASH\n", timeout=30)
+            assert process.returncode == 73
     finally:
         if process.poll() is None:
             process.kill()

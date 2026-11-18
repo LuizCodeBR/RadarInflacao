@@ -96,8 +96,18 @@ def main(argv=None) -> int:
     comparison.add_argument("--from-b", dest="bs", type=month_argument, required=True)
     comparison.add_argument("--to-b", dest="be", type=month_argument, required=True)
     comparison.add_argument("--output", type=Path, required=True)
+    html_demo = sub.add_parser("demo-html", help="Gera HTML offline sem Python no destino")
+    html_demo.add_argument("--output", type=Path, required=True)
     args = parser.parse_args(argv)
     try:
+        if args.command == "demo-html":
+            if args.data_dir is not None:
+                raise RadarError("O HTML usa somente as amostras incluídas; omita --data-dir.")
+            from .offline import write_demo
+
+            result = write_demo(project_root() / "sample", args.output)
+            print(json.dumps(result, ensure_ascii=False))
+            return 0
         if args.command == "quality-demo":
             if args.data_dir is not None:
                 raise RadarError(
