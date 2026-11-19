@@ -4,6 +4,8 @@
 
 Compare IPCA × INPC com filtros, gráficos e CSV **sem Python, instalação ou conta**. No site, basta abrir o link e escolher o período. A página precisa de internet para carregar; os filtros, gráficos e CSV são processados no próprio navegador.
 
+Na página, use **Baixar ZIP** para guardar a demonstração ou **Enviar sugestão** e **Relatar problema** para participar pelo GitHub (é preciso entrar na conta para enviar).
+
 **Para guardar uma cópia e usar offline:**
 
 1. **Baixe** `RadarInflacao-Demo-0.7.0.zip`. Você pode salvar no D:.

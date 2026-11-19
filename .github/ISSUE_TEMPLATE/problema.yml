@@ -1,0 +1,41 @@
+name: Relatar um problema
+description: Conte o que não funcionou ao testar o Radar da Inflação.
+title: "[Problema] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use este formulário para relatar uma dificuldade ou resultado inesperado.
+        [Abrir a demonstração](https://luizcodebr.github.io/RadarInflacao/).
+        Sua mensagem ficará pública neste repositório.
+  - type: textarea
+    id: problema
+    attributes:
+      label: O que aconteceu?
+      placeholder: Descreva o problema ou a mensagem que apareceu.
+    validations:
+      required: true
+  - type: textarea
+    id: passos
+    attributes:
+      label: Como podemos reproduzir?
+      description: Informe os passos, o período e o indicador selecionados, quando se aplicarem.
+      placeholder: |
+        1. Abri a demonstração online ou o HTML do ZIP.
+        2. Selecionei os meses e o indicador...
+        3. Cliquei em...
+    validations:
+      required: true
+  - type: textarea
+    id: esperado
+    attributes:
+      label: O que você esperava que acontecesse?
+    validations:
+      required: false
+  - type: input
+    id: ambiente
+    attributes:
+      label: Navegador e dispositivo
+      placeholder: Ex.: Edge no Windows ou Chrome no Android.
+    validations:
+      required: false

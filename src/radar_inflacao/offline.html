@@ -11,6 +11,8 @@
 @media(max-width:700px){.wrap{padding:0 16px}.topbar{padding-top:18px;padding-bottom:18px}.brand{font-size:14px}.offline{font-size:10px;letter-spacing:.04em}.hero{grid-template-columns:1fr;gap:22px;padding-top:28px;padding-bottom:28px}.sample-box{padding-left:14px}.sample-box strong{font-size:19px}.panel{padding:17px;border-radius:11px}.filter-head,.filter-foot,.chart-head{flex-direction:column;align-items:stretch;gap:12px}.filters{grid-template-columns:1fr 1fr;gap:12px}.measure-field{grid-column:1/-1}.filter-foot .button{width:100%}.section-caption{flex-direction:column;gap:4px}.cards{gap:8px}.card{padding:12px 10px;border-radius:8px}.value{font-size:25px}.value small{font-size:12px}.card-title{font-size:11px;letter-spacing:0}.card .small{font-size:11px}.detail{grid-template-columns:1fr;gap:12px}.detail-values{gap:10px 18px}.notes{grid-template-columns:1fr;gap:15px}.table-wrap{max-height:360px}th,td{padding:10px 11px;font-size:12px}.chart{margin-top:6px}.intro{font-size:13px}}
 @media(max-width:370px){.cards{grid-template-columns:1fr}.card{display:flex;justify-content:space-between;align-items:center;gap:8px}.card .small{display:none}.value{margin:0}.brand{font-size:12px}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+.demo-links{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}.action-link{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:44px;border:1px solid #aec6c8;border-radius:8px;padding:9px 15px;background:#fff;color:var(--teal);font-size:14px;font-weight:650;line-height:1.4;text-decoration:none}.action-link:hover{background:#e9f3f0;border-color:var(--teal)}.action-link.primary{background:var(--teal);border-color:var(--teal);color:#fff}.action-link.primary:hover{background:#055952}.actions-note{font-size:12px;color:var(--muted);margin:9px 0 0;max-width:780px}
+@media(max-width:700px){.demo-links{gap:8px}.action-link{flex:1 1 auto}.actions-note{line-height:1.5}}
 </style>
 </head>
 <body>
@@ -22,7 +24,13 @@
 </div>
 </header>
 <main class="wrap" id="conteudo">
-<p class="intro">Demonstração gratuita. Todos os dados estão neste arquivo — sem instalação, conta ou conexão.</p>
+<p class="intro">Demonstração gratuita. Depois de carregar a página, explore os dados sem instalação ou conta.</p>
+<nav class="demo-links" aria-label="Baixar e participar">
+<a id="download-zip" class="action-link primary" href="https://github.com/LuizCodeBR/RadarInflacao/releases/download/v0.7.0/RadarInflacao-Demo-0.7.0.zip">Baixar ZIP <span aria-hidden="true">↓</span></a>
+<a id="send-suggestion" class="action-link" href="https://github.com/LuizCodeBR/RadarInflacao/issues/new?template=sugestao.yml" target="_blank" rel="noopener noreferrer" aria-label="Enviar sugestão no GitHub (nova aba)" aria-describedby="github-note">Enviar sugestão <span aria-hidden="true">↗</span></a>
+<a id="report-problem" class="action-link" href="https://github.com/LuizCodeBR/RadarInflacao/issues/new?template=problema.yml" target="_blank" rel="noopener noreferrer" aria-label="Relatar problema no GitHub (nova aba)" aria-describedby="github-note">Relatar problema <span aria-hidden="true">↗</span></a>
+</nav>
+<p id="github-note" class="actions-note">Baixe uma cópia para usar offline. Para enviar uma sugestão ou problema, entre na sua conta do GitHub.</p>
 <noscript><p class="error">Ative o JavaScript do navegador para usar os filtros e exportar o CSV. Não é necessário instalar Python.</p></noscript>
 <section class="panel" id="filtros" aria-labelledby="filter-title">
 <div class="filter-head"><h2 id="filter-title">Explore o período</h2><div class="presets"><button class="text-button" id="last-year" type="button">Últimos 12 meses da amostra</button><button class="text-button" id="all" type="button">Todo o histórico</button></div></div>

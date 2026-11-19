@@ -1,0 +1,24 @@
+name: Sugestão de melhoria
+description: Conte como o Radar da Inflação poderia ajudar mais no seu uso.
+title: "[Sugestão] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use este formulário para sugerir melhorias no Radar da Inflação.
+        [Abrir a demonstração](https://luizcodebr.github.io/RadarInflacao/).
+        Sua mensagem ficará pública neste repositório.
+  - type: textarea
+    id: sugestao
+    attributes:
+      label: Qual melhoria você sugere?
+      placeholder: Descreva o que você gostaria de fazer no Radar.
+    validations:
+      required: true
+  - type: textarea
+    id: utilidade
+    attributes:
+      label: Como isso ajudaria no seu uso?
+      placeholder: Se quiser, conte uma situação em que essa melhoria seria útil.
+    validations:
+      required: false

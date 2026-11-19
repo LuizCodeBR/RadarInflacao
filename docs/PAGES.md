@@ -6,6 +6,14 @@ Abra o link, escolha o período e o indicador e use os gráficos, a tabela e o b
 
 O site oferece a mesma demonstração 0.7.0, com 82 meses por índice, de janeiro/2020 a outubro/2026. A amostra não se atualiza ao abrir a página. A internet é necessária para carregar o HTML; os filtros e a exportação funcionam no navegador, sem consultar o IBGE. Para guardar uma cópia que possa ser aberta sem internet, use o [ZIP da versão 0.7.0](https://github.com/LuizCodeBR/RadarInflacao/releases/download/v0.7.0/RadarInflacao-Demo-0.7.0.zip).
 
+## Baixar, sugerir e relatar problemas
+
+Perto dos filtros, **Baixar ZIP** baixa o pacote offline da versão 0.7.0. **Enviar sugestão** e **Relatar problema** abrem formulários em português no GitHub, em outra aba. É necessário entrar em uma conta do GitHub para enviar a mensagem, que ficará pública no repositório. Abrir o formulário não envia nada automaticamente.
+
+O formulário de sugestão pede a melhoria desejada e permite explicar sua utilidade. O de problema pede o ocorrido e os passos para reproduzir; resultado esperado, navegador e dispositivo são opcionais. Os modelos ficam em `.github/ISSUE_TEMPLATE/`.
+
+Os botões usam links comuns, sem coleta de informações pelo Radar ou serviços adicionais. O ZIP publicado da versão 0.7.0 permanece com seu conteúdo e assinatura originais; os botões foram acrescentados à edição online e ao gerador do HTML.
+
 ## Publicação
 
 O fluxo [Publicar demonstração no Pages](https://github.com/LuizCodeBR/RadarInflacao/actions/workflows/pages.yml), definido em `.github/workflows/pages.yml`, publica o arquivo `ABRIR-DEMONSTRACAO.html` da raiz como `index.html`. Somente esse HTML é enviado para o site; estilos, gráficos e dados já estão incorporados nele.

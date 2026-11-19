@@ -8,6 +8,8 @@ A versão 0.7.0 inclui um HTML autossuficiente do comparador nacional. Para quem
 
 A página precisa de internet para carregar. Depois de carregada, filtros, gráficos e exportação são processados no próprio navegador, sem novas consultas ao IBGE. A amostra continua fixa até outubro/2026. Para abrir novamente sem depender de internet, guarde o ZIP conforme as instruções abaixo. [Como a publicação no Pages funciona](PAGES.md).
 
+Na edição online, os botões **Baixar ZIP**, **Enviar sugestão** e **Relatar problema** ficam perto dos filtros. Os formulários de participação abrem no GitHub em outra aba e exigem uma conta para enviar.
+
 ## Baixar e abrir
 
 1. [Baixe RadarInflacao-Demo-0.7.0.zip](https://github.com/LuizCodeBR/RadarInflacao/releases/download/v0.7.0/RadarInflacao-Demo-0.7.0.zip).
