@@ -1,6 +1,7 @@
 name: Sugestão de melhoria
 description: Conte como o Radar da Inflação poderia ajudar mais no seu uso.
 title: "[Sugestão] "
+labels: ["enhancement", "triagem"]
 body:
   - type: markdown
     attributes:

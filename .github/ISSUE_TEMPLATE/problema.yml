@@ -1,6 +1,7 @@
 name: Relatar um problema
 description: Conte o que não funcionou ao testar o Radar da Inflação.
 title: "[Problema] "
+labels: ["bug", "triagem"]
 body:
   - type: markdown
     attributes:

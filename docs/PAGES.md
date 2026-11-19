@@ -10,7 +10,7 @@ O site oferece a mesma demonstração 0.7.0, com 82 meses por índice, de janeir
 
 Perto dos filtros, **Baixar ZIP** baixa o pacote offline da versão 0.7.0. **Enviar sugestão** e **Relatar problema** abrem formulários em português no GitHub, em outra aba. É necessário entrar em uma conta do GitHub para enviar a mensagem, que ficará pública no repositório. Abrir o formulário não envia nada automaticamente.
 
-O formulário de sugestão pede a melhoria desejada e permite explicar sua utilidade. O de problema pede o ocorrido e os passos para reproduzir; resultado esperado, navegador e dispositivo são opcionais. Os modelos ficam em `.github/ISSUE_TEMPLATE/`.
+O formulário de sugestão pede a melhoria desejada e permite explicar sua utilidade. O de problema pede o ocorrido e os passos para reproduzir; resultado esperado, navegador e dispositivo são opcionais. Os modelos ficam em `.github/ISSUE_TEMPLATE/`. Os novos envios recebem automaticamente `enhancement` (sugestão) ou `bug` (problema), além de `triagem` (aguardando análise). [Acompanhar o feedback](FEEDBACK.md).
 
 Os botões usam links comuns, sem coleta de informações pelo Radar ou serviços adicionais. O ZIP publicado da versão 0.7.0 permanece com seu conteúdo e assinatura originais; os botões foram acrescentados à edição online e ao gerador do HTML.
 

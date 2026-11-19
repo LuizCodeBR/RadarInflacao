@@ -4,7 +4,7 @@
 
 Compare IPCA × INPC com filtros, gráficos e CSV **sem Python, instalação ou conta**. No site, basta abrir o link e escolher o período. A página precisa de internet para carregar; os filtros, gráficos e CSV são processados no próprio navegador.
 
-Na página, use **Baixar ZIP** para guardar a demonstração ou **Enviar sugestão** e **Relatar problema** para participar pelo GitHub (é preciso entrar na conta para enviar).
+Na página, use **Baixar ZIP** para guardar a demonstração ou **Enviar sugestão** e **Relatar problema** para participar pelo GitHub (é preciso entrar na conta para enviar). Os formulários classificam o feedback automaticamente por tipo e como aguardando análise. [Acompanhar sugestões e problemas](docs/FEEDBACK.md).
 
 **Para guardar uma cópia e usar offline:**
 
