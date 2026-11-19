@@ -1,8 +1,10 @@
 # Radar da Inflação
 
-**[Baixar demonstração offline 0.7.0 (ZIP, cerca de 20 KB)](https://github.com/LuizCodeBR/RadarInflacao/releases/download/v0.7.0/RadarInflacao-Demo-0.7.0.zip)** · [Página da versão](https://github.com/LuizCodeBR/RadarInflacao/releases/tag/v0.7.0)
+**[Testar direto no navegador](https://luizcodebr.github.io/RadarInflacao/)** · **[Baixar demonstração offline 0.7.0 (ZIP, cerca de 20 KB)](https://github.com/LuizCodeBR/RadarInflacao/releases/download/v0.7.0/RadarInflacao-Demo-0.7.0.zip)** · [Página da versão](https://github.com/LuizCodeBR/RadarInflacao/releases/tag/v0.7.0)
 
-Compare IPCA × INPC com filtros, gráficos e CSV **sem Python, instalação, conta ou internet depois do download**.
+Compare IPCA × INPC com filtros, gráficos e CSV **sem Python, instalação ou conta**. No site, basta abrir o link e escolher o período. A página precisa de internet para carregar; os filtros, gráficos e CSV são processados no próprio navegador.
+
+**Para guardar uma cópia e usar offline:**
 
 1. **Baixe** `RadarInflacao-Demo-0.7.0.zip`. Você pode salvar no D:.
 2. **Extraia** o ZIP. No Windows, clique com o botão direito e escolha **Extrair Tudo**.
@@ -12,7 +14,7 @@ Escolha o mês inicial, o final e o indicador. Use **Baixar CSV do período** pa
 
 **Experimente:** selecione outubro/2026 nos dois filtros e **Variação mensal**. A amostra mostra IPCA **0,14%**, INPC **0,22%** e diferença INPC − IPCA **+0,08 p.p.**
 
-A demonstração inclui uma **amostra fixa de janeiro/2020 a outubro/2026**, identificada na tela, sem atualização automática. O ZIP contém apenas HTML e instruções. [Guia completo](docs/OFFLINE.md) · [Validação da versão](docs/VALIDACAO-0.7.0.md).
+A demonstração inclui uma **amostra fixa de janeiro/2020 a outubro/2026**, identificada na tela, sem atualização automática. O ZIP contém apenas HTML e instruções. [Guia completo](docs/OFFLINE.md) · [Publicação no Pages](docs/PAGES.md) · [Validação da versão](docs/VALIDACAO-0.7.0.md).
 
 ![Demonstração offline com filtros, indicadores e gráficos de IPCA e INPC](docs/imagens/offline-desktop.png)
 

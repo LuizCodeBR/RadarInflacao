@@ -1,5 +1,7 @@
 # Instalação e uso
 
+**[Teste IPCA × INPC direto no navegador](https://luizcodebr.github.io/RadarInflacao/)**, sem Python, instalação ou conta. A página precisa de internet para carregar e usa a mesma amostra fixa da demonstração offline.
+
 Para experimentar apenas IPCA × INPC sem instalar Python, baixe e extraia o [ZIP da demonstração 0.7.0](https://github.com/LuizCodeBR/RadarInflacao/releases/download/v0.7.0/RadarInflacao-Demo-0.7.0.zip) e abra `ABRIR-DEMONSTRACAO.html`. [Instruções da demonstração offline](OFFLINE.md). As instruções abaixo se aplicam ao aplicativo completo.
 
 ## Neste computador

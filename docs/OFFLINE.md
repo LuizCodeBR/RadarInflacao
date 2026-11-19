@@ -2,6 +2,12 @@
 
 A versão 0.7.0 inclui um HTML autossuficiente do comparador nacional. Para quem recebe a demonstração, basta extrair o ZIP e abrir `ABRIR-DEMONSTRACAO.html` no navegador com JavaScript habilitado. Python, instalação de dependências, servidor e internet não são necessários para explorar o arquivo.
 
+## Testar direto no navegador
+
+**[Abrir o Radar da Inflação no GitHub Pages](https://luizcodebr.github.io/RadarInflacao/)**. Escolha o período e o indicador para explorar os gráficos e baixar o CSV, sem instalar nada.
+
+A página precisa de internet para carregar. Depois de carregada, filtros, gráficos e exportação são processados no próprio navegador, sem novas consultas ao IBGE. A amostra continua fixa até outubro/2026. Para abrir novamente sem depender de internet, guarde o ZIP conforme as instruções abaixo. [Como a publicação no Pages funciona](PAGES.md).
+
 ## Baixar e abrir
 
 1. [Baixe RadarInflacao-Demo-0.7.0.zip](https://github.com/LuizCodeBR/RadarInflacao/releases/download/v0.7.0/RadarInflacao-Demo-0.7.0.zip).
